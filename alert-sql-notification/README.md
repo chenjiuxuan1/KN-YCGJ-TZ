@@ -9,11 +9,12 @@
 - `workflows/sql-optimizer-notify-google-dynamic.workflow.json`：异常 SQL 优化主流程，动态读取联系人更新源。
 - `workflows/sql-optimizer-notify-hardcoded.workflow.json`：异常 SQL 优化主流程，联系人映射写死版本。
 - `workflows/daily-contact-form-sync-local-csv.workflow.json`：每日读取表单响应并覆盖更新本机 CSV 的流程。
+- `workflows/daily-contact-form-sync-pull-repo-csv.workflow.json`：推荐上线版本。每日先拉取本仓库，再覆盖更新仓库内单个 CSV，最后提交并推回 GitHub。
 - `scripts/`：生成或迭代 workflow 的脚本。
 
 ## 本机 CSV 同步方式
 
-推荐在 n8n 本机固定保存一个 CSV：
+如果只想在 n8n 本机固定保存一个 CSV，可以使用：
 
 ```text
 /data/alert-contact-mapping.csv
@@ -23,9 +24,37 @@
 
 如果表单里的“修改后联系人”为空，会自动兜底为国家负责人，并在备注中写入说明。
 
+## 推荐上线方式：拉取仓库并推回 CSV
+
+推荐导入：
+
+```text
+workflows/daily-contact-form-sync-pull-repo-csv.workflow.json
+```
+
+流程会使用：
+
+```text
+/data/KN-YCGJ-TZ
+```
+
+作为 n8n 本机仓库目录。每次执行：
+
+1. `git clone` 或 `git pull --rebase` 本仓库。
+2. 读取 Google 表单响应 CSV。
+3. 覆盖更新仓库内单个联系人 CSV：
+
+```text
+alert-sql-notification/data/alert-contact-mapping.csv
+```
+
+4. 如果 CSV 有变更，则 `git commit` 并 `git push origin main`。
+
+这个版本需要 n8n 本机安装 `git`，并配置可读写本仓库的 SSH key。
+
 ## n8n 运行要求
 
-本机 CSV workflow 需要 Code 节点能使用 Node.js 内置 `fs` 模块：
+CSV workflow 需要 Code 节点能使用 Node.js 内置 `fs` 模块：
 
 ```text
 NODE_FUNCTION_ALLOW_BUILTIN=fs
