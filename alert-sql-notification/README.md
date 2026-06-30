@@ -9,6 +9,7 @@
 - `workflows/sql-optimizer-notify-google-dynamic.workflow.json`：异常 SQL 优化主流程，动态读取联系人更新源。
 - `workflows/sql-optimizer-notify-repo-csv.workflow.json`：推荐上线版本。异常 SQL 优化主流程，每次通知前先拉取本仓库，并读取仓库内单个联系人 CSV 做映射。
 - `workflows/sql-optimizer-notify-github-raw-csv-single-chain.workflow.json`：推荐发通知版本。异常 SQL 优化主流程直接通过 GitHub raw URL 拉取最新联系人 CSV，保持原主链路，不需要 n8n 本机 git。
+- `workflows/sql-optimizer-notify-ssh-repo-csv-single-chain.workflow.json`：推荐用于内网 n8n。通过 SSH 节点到可访问 GitHub 的机器拉取最新仓库，并 `cat` CSV 输出给后续节点解析，保持原主链路。
 - `workflows/sql-optimizer-notify-hardcoded.workflow.json`：异常 SQL 优化主流程，联系人映射写死版本。
 - `workflows/daily-contact-form-sync-local-csv.workflow.json`：每日读取表单响应并覆盖更新本机 CSV 的流程。
 - `workflows/daily-contact-form-sync-pull-repo-csv.workflow.json`：推荐上线版本。每日先拉取本仓库，再覆盖更新仓库内单个 CSV，最后提交并推回 GitHub。
@@ -31,7 +32,7 @@
 推荐导入两个 workflow：
 
 ```text
-workflows/sql-optimizer-notify-github-raw-csv-single-chain.workflow.json
+workflows/sql-optimizer-notify-ssh-repo-csv-single-chain.workflow.json
 workflows/daily-contact-form-sync-pull-repo-csv.workflow.json
 ```
 
@@ -47,16 +48,24 @@ workflows/daily-contact-form-sync-pull-repo-csv.workflow.json
 alert-sql-notification/data/alert-contact-mapping.csv
 ```
 
-发通知流程 `sql-optimizer-notify-github-raw-csv-single-chain.workflow.json` 每次执行：
+发通知流程 `sql-optimizer-notify-ssh-repo-csv-single-chain.workflow.json` 每次执行：
 
-1. 通过 GitHub raw URL 读取仓库内单个联系人 CSV。
-2. 按 `国家 + 账号` 映射通知联系人。
-3. 发送 Sidecar 通知。
+1. 通过 SSH 节点进入能访问 GitHub 的机器。
+2. `git fetch` + `git reset --hard origin/main` 拉取最新仓库。
+3. `cat alert-sql-notification/data/alert-contact-mapping.csv` 输出 CSV。
+4. n8n 后续节点解析 SSH stdout，按 `国家 + 账号` 映射通知联系人。
+5. 发送 Sidecar 通知。
 
 发通知主链路保持为：
 
 ```text
 Notify Config -> Fetch Contact CSV -> Get User Info -> Merge Notify Target
+```
+
+如果你的 n8n 可以直接访问 GitHub raw URL，也可以使用：
+
+```text
+workflows/sql-optimizer-notify-github-raw-csv-single-chain.workflow.json
 ```
 
 表单同步流程 `daily-contact-form-sync-pull-repo-csv.workflow.json` 每天 12 点执行：
