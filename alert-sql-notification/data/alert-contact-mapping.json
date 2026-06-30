@@ -1,0 +1,6131 @@
+{
+  "cn": {
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_biz_central_vintage": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_fox_dev": {
+      "department": "贷后业务组",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_biz_ds_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_exp_ro": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_biz_ds": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_doris_load": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_exp_ds": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_jupyter_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_metabase_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_superset_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_datacheck": {
+      "department": "组件研发组",
+      "contacts": [
+        "赵斌"
+      ],
+      "emails": [
+        "binzhao@kn.group"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_superset_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_superset_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_superset_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_superset_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_jupyter_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_wd_dm_pub": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ai": {
+      "department": "数据开发组",
+      "contacts": [
+        "黄启龙"
+      ],
+      "emails": [
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_superset_exp": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发组",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_bigdata_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_jupyter_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_superset_helios": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_jupyter_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_policy_biz_central": {
+      "department": "信贷平台部",
+      "contacts": [
+        "闫明洋"
+      ],
+      "emails": [
+        "mingyangyan@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_snperset_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_jupyter_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_jupyter_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_jupyter_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "潘晓峰"
+      ],
+      "emails": [
+        "neopan@kn.group"
+      ]
+    },
+    "e_jupyter_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_jupyter_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "张恒阳",
+        "宗美晨"
+      ],
+      "emails": [
+        "owenzhang@kn.group",
+        "rockyzong@kn.group"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "潘晓峰"
+      ],
+      "emails": [
+        "neopan@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_jupyter_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_cd_wr": {
+      "department": "触达系统组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_adhoc_fox_capital": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_ds_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳"
+      ],
+      "emails": [
+        "owenzhang@kn.group"
+      ]
+    },
+    "e_jupyter_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_biz_atx_ds": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_develop_dmp": {
+      "department": "在线特征组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_superset_develop_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_superset_develop_dd_viewer": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_jupyter_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "潘晓峰"
+      ],
+      "emails": [
+        "neopan@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_jupyter_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_jupyter_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_backup": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_ds_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_jupyter_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "潘晓峰"
+      ],
+      "emails": [
+        "neopan@kn.group"
+      ]
+    },
+    "e_ds_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营平台",
+      "contacts": [
+        "王春雷"
+      ],
+      "emails": [
+        "emmawang@kn.group"
+      ]
+    }
+  },
+  "ine": {
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "周楚雄"
+      ],
+      "emails": [
+        "daviszhou@kn.group"
+      ]
+    },
+    "e_superset_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_metabase_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_om": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_superset_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_yf_load": {
+      "department": "风控平台组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_biz_ine_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "刘森"
+      ],
+      "emails": [
+        "lukasliu@kn.group"
+      ]
+    },
+    "e_monitor": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "唐光胜"
+      ],
+      "emails": [
+        "gordontang@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_biz_ds": {
+      "department": "信贷平台部",
+      "contacts": [
+        "刘森"
+      ],
+      "emails": [
+        "lukasliu@kn.group"
+      ]
+    },
+    "e_doris_load": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "唐光胜"
+      ],
+      "emails": [
+        "gordontang@kn.group"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_superset_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_superset_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "孙云",
+        "王彬"
+      ],
+      "emails": [
+        "echosun@kn.group",
+        "binwang@kn.group"
+      ]
+    },
+    "e_datacheck": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "王勇",
+        "王婉婷"
+      ],
+      "emails": [
+        "ivanwang@kn.group",
+        "clarawang@kn.group"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_adhoc_aifox": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "唐光胜"
+      ],
+      "emails": [
+        "gordontang@kn.group"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "周楚雄"
+      ],
+      "emails": [
+        "daviszhou@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "刘森"
+      ],
+      "emails": [
+        "lukasliu@kn.group"
+      ]
+    },
+    "e_superset_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd": {
+      "department": "商业分析组",
+      "contacts": [
+        "陈静"
+      ],
+      "emails": [
+        "jennychen@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_superset_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "王勇",
+        "王婉婷"
+      ],
+      "emails": [
+        "ivanwang@kn.group",
+        "clarawang@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "王勇",
+        "王婉婷"
+      ],
+      "emails": [
+        "ivanwang@kn.group",
+        "clarawang@kn.group"
+      ]
+    },
+    "e_metabase_yf": {
+      "department": "决策工程组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_superset_product": {
+      "department": "产品部",
+      "contacts": [
+        "周楚雄"
+      ],
+      "emails": [
+        "daviszhou@kn.group"
+      ]
+    },
+    "e_superset_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "孙云",
+        "卞仑"
+      ],
+      "emails": [
+        "echosun@kn.group",
+        "leobian@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_datahub": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "孙云",
+        "卞仑"
+      ],
+      "emails": [
+        "echosun@kn.group",
+        "leobian@kn.group"
+      ]
+    },
+    "e_superset_develop_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "孙云",
+        "卞仑"
+      ],
+      "emails": [
+        "echosun@kn.group",
+        "leobian@kn.group"
+      ]
+    },
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_irsd_wadezhu": {
+      "department": "创新策略组",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_argus_load": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_data_adload": {
+      "department": "数据产品组",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "刘森"
+      ],
+      "emails": [
+        "lukasliu@kn.group"
+      ]
+    },
+    "e_argus_hermes": {
+      "department": "财务组",
+      "contacts": [
+        "杨智"
+      ],
+      "emails": [
+        "zackyang@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发组",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_exp": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_data_develop": {
+      "department": "研发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_data_product": {
+      "department": "数据产品组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_app_fe": {
+      "department": "研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_load2": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_adhoc_dm_dd": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_superset_frontd": {
+      "department": "研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_fox_bi": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "周楚雄"
+      ],
+      "emails": [
+        "daviszhou@kn.group"
+      ]
+    },
+    "e_metabase2": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_tmk_dwb": {
+      "department": "用户增长组",
+      "contacts": [
+        "王勇",
+        "王婉婷"
+      ],
+      "emails": [
+        "ivanwang@kn.group",
+        "clarawang@kn.group"
+      ]
+    },
+    "e_jupyter_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_adhoc_fox_capital": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_adhoc_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_superset_develop_dmp": {
+      "department": "在线特征组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_superset_develop_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_superset_develop_dd_viewer": {
+      "department": "合规业务组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "王彬"
+      ],
+      "emails": [
+        "binwang@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_sp": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_jupyter_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "孙云",
+        "卞仑"
+      ],
+      "emails": [
+        "echosun@kn.group",
+        "leobian@kn.group"
+      ]
+    },
+    "e_adhoc_service": {
+      "department": "数据开发组",
+      "contacts": [
+        "何柳琴",
+        "翟爽"
+      ],
+      "emails": [
+        "gretchenhe@kn.group",
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    }
+  },
+  "th": {
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_irsd_wadezhu": {
+      "department": "创新策略组",
+      "contacts": [
+        "张雷"
+      ],
+      "emails": [
+        "leizhang@kn.group"
+      ]
+    },
+    "e_superset_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "罗玉瑰"
+      ],
+      "emails": [
+        "rosieluo@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_argus_load": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_report_read": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_biz_tha_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "罗玉瑰"
+      ],
+      "emails": [
+        "rosieluo@kn.group"
+      ]
+    },
+    "e_metabase_fin_global": {
+      "department": "经营分析组",
+      "contacts": [
+        "罗玉瑰"
+      ],
+      "emails": [
+        "rosieluo@kn.group"
+      ]
+    },
+    "e_superset_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_superset_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_monitor": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_superset_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "罗玉瑰"
+      ],
+      "emails": [
+        "rosieluo@kn.group"
+      ]
+    },
+    "e_superset_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_exp_ro": {
+      "department": "离线标签组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_superset_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_exp_ds": {
+      "department": "离线标签组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_metabase_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_data_adload": {
+      "department": "数据产品组",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_datacheck": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_superset_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_om": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_superset_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_superset_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "ong": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_doris_load": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_adhoc_aifox": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_superset_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_datadev_public": {
+      "department": "数据开发组",
+      "contacts": [
+        "严翔"
+      ],
+      "emails": [
+        "yuyiiyan@kn.group"
+      ]
+    },
+    "e_infra_gbm_ddl": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发组",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_infra_gbm": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_superset_helios": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_presto": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_report_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_infra_gbm_test": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_cluster_sync": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_load2": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_janus": {
+      "department": "数据开发组",
+      "contacts": [
+        "陈潇"
+      ],
+      "emails": [
+        "vexchen@kn.group"
+      ]
+    },
+    "e_superset_frontd": {
+      "department": "研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_fox_bi": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_metabase2": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_gbm_infra": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_adhoc_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_tmk_dwb": {
+      "department": "用户增长组",
+      "contacts": [
+        "罗玉瑰"
+      ],
+      "emails": [
+        "rosieluo@kn.group"
+      ]
+    },
+    "e_jupyter_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_cd_wr": {
+      "department": "触达系统组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_adhoc_fox_capital": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_ds_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_report": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳"
+      ],
+      "emails": [
+        "owenzhang@kn.group"
+      ]
+    },
+    "e_guanyuan_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_develop_dmp": {
+      "department": "在线特征组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_superset_develop_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_superset_develop_dd_viewer": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_sp": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_jupyter_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_risk_th": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_rtls": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_ds_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_adhoc_service": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营平台",
+      "contacts": [
+        "王春雷"
+      ],
+      "emails": [
+        "emmawang@kn.group"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明",
+        "黄启龙"
+      ],
+      "emails": [
+        "brightonzhu@kn.group",
+        "qilonghuang@kn.group"
+      ]
+    }
+  },
+  "ph": {
+    "e_biz_phl_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "许诺"
+      ],
+      "emails": [
+        "lunaxu@kn.group"
+      ]
+    },
+    "e_superset_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_superset_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_superset_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "许诺"
+      ],
+      "emails": [
+        "lunaxu@kn.group"
+      ]
+    },
+    "e_superset_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_superset_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "周明彦"
+      ],
+      "emails": [
+        "mingyanzhou@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_data_adload": {
+      "department": "数据产品组",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_datacheck": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_superset_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_superset_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_irsd_wadezhu": {
+      "department": "创新策略组",
+      "contacts": [
+        "张雷"
+      ],
+      "emails": [
+        "leizhang@kn.group"
+      ]
+    },
+    "e_superset_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "许诺"
+      ],
+      "emails": [
+        "lunaxu@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_doris_load": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "万家辉",
+        "王凡"
+      ],
+      "emails": [
+        "jaywan.j@kn.group",
+        "derrickwang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_argus_load": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_superset_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发组",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ad_agent": {
+      "department": "用户增长组",
+      "contacts": [
+        "许诺"
+      ],
+      "emails": [
+        "lunaxu@kn.group"
+      ]
+    },
+    "e_exp": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_helios": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_ds_data_develop": {
+      "department": "研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_report_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_ds_data_product": {
+      "department": "数据产品组",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_janus": {
+      "department": "数据开发组",
+      "contacts": [
+        "陈潇"
+      ],
+      "emails": [
+        "vexchen@kn.group"
+      ]
+    },
+    "e_guanyuan_otc": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_metabase2": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_app_phl": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_jupyter_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_cd_wr": {
+      "department": "触达系统组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_ds_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_biz_portal": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳"
+      ],
+      "emails": [
+        "owenzhang@kn.group"
+      ]
+    },
+    "e_biz_phl_w": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_grafana": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    },
+    "e_superset_develop_dmp": {
+      "department": "在线特征组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_superset_develop_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_superset_develop_dd_viewer": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_jupyter_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_develop_product": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营平台",
+      "contacts": [
+        "王春雷"
+      ],
+      "emails": [
+        "emmawang@kn.group"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "数据开发组",
+      "contacts": [
+        "汤伟",
+        "陈江川"
+      ],
+      "emails": [
+        "simontang@kn.group",
+        "jiangchuanchen@kn.group"
+      ]
+    }
+  },
+  "pk": {
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_argus_load": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_exp_public": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "林志诚"
+      ],
+      "emails": [
+        "jazonlin@kn.group"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "林志诚"
+      ],
+      "emails": [
+        "jazonlin@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_data_adload": {
+      "department": "数据产品组",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_biz_pak_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_metabase2": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_feature_bigdata_api": {
+      "department": "组件研发组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_cd_wr": {
+      "department": "触达系统组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营平台",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ai": {
+      "department": "数据开发组",
+      "contacts": [
+        "黄启龙"
+      ],
+      "emails": [
+        "qilonghuang@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发组",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_feature_sr": {
+      "department": "数据开发组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发组",
+      "contacts": [
+        "张恒阳"
+      ],
+      "emails": [
+        "owenzhang@kn.group"
+      ]
+    },
+    "e_superset_helios": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_ds_data_develop": {
+      "department": "研发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_ds_data_product": {
+      "department": "数据产品组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_janus": {
+      "department": "数据开发组",
+      "contacts": [
+        "陈潇"
+      ],
+      "emails": [
+        "vexchen@kn.group"
+      ]
+    },
+    "e_superset_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    },
+    "e_ds_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "宋倩"
+      ],
+      "emails": [
+        "miasong@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营平台",
+      "contacts": [
+        "王春雷"
+      ],
+      "emails": [
+        "emmawang@kn.group"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "数据开发组",
+      "contacts": [
+        "余红叶",
+        "穆晋杰"
+      ],
+      "emails": [
+        "adamyu@kn.group",
+        "moonmu@kn.group"
+      ]
+    }
+  },
+  "mx": {
+    "e_adhoc_aifox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_guanyuan_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_load": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_develop_bi": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_exp_public": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_guanyuan_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "杨莹",
+        "郭雨凝"
+      ],
+      "emails": [
+        "yayioyang@kn.group",
+        "elenaguo@kn.group"
+      ]
+    },
+    "e_superset_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "backup_user": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_guanyuan_irsd": {
+      "department": "创新策略组",
+      "contacts": [
+        "杨杨"
+      ],
+      "emails": [
+        "youngyang@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_exp_ds": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_guanyuan_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_guanyuan_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_metabase_fox": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "root": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_om": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_develop": {
+      "department": "研发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_superset_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_ds_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "杨莹",
+        "郭雨凝"
+      ],
+      "emails": [
+        "yayioyang@kn.group",
+        "elenaguo@kn.group"
+      ]
+    },
+    "e_superset_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_superset_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_superset_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_ds_aifox": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_strategy": {
+      "department": "信贷策略中心",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_biz_mex_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_fox_api": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_businessanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_guanyuan_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_superset_develop_fox": {
+      "department": "产能效率部",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_superset_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "樊姝"
+      ],
+      "emails": [
+        "sherylfan@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_argus_load": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_ds_wd_decision": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_fox_load": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_fox_public": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_report_read": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_metabase": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_superset_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis_add_dd_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_model": {
+      "department": "智能模型中心",
+      "contacts": [
+        "杨懿宁",
+        "詹栩怡"
+      ],
+      "emails": [
+        "zorayang@kn.group",
+        "carriezhan@kn.group"
+      ]
+    },
+    "e_ds_wd_compliance": {
+      "department": "唯渡",
+      "contacts": [
+        "杨朔"
+      ],
+      "emails": [
+        "Joshuayang@weidu.co"
+      ]
+    },
+    "e_msgsvr_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_report_biz": {
+      "department": "信贷平台部",
+      "contacts": [
+        "赵祥"
+      ],
+      "emails": [
+        "xiangzhao@kn.group"
+      ]
+    },
+    "e_superset_develop_product": {
+      "department": "产品部",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_operatanalysis": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_bigdata": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_fox_wd": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_exp_ro": {
+      "department": "离线标签组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "admin": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_ds_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_superset_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_sync": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_data_adload": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_datacheck": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_ds_wd_finance": {
+      "department": "唯渡",
+      "contacts": [
+        "胡婷婷"
+      ],
+      "emails": [
+        "tiffanyhu@weidu.co"
+      ]
+    },
+    "e_superset_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_biz_ds_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_wd_efficiency": {
+      "department": "唯渡",
+      "contacts": [
+        "陈俊丰",
+        "胡海昌"
+      ],
+      "emails": [
+        "lavinechen@weidu.co",
+        "popeyehu@weidu.co"
+      ]
+    },
+    "e_superset_irsd_wadezhu": {
+      "department": "创新策略组",
+      "contacts": [
+        "朱超凡"
+      ],
+      "emails": [
+        "wadezhu@kn.group"
+      ]
+    },
+    "e_superset_tmk": {
+      "department": "用户增长组",
+      "contacts": [
+        "杨莹",
+        "郭雨凝"
+      ],
+      "emails": [
+        "yayioyang@kn.group",
+        "elenaguo@kn.group"
+      ]
+    },
+    "starrocks_monitor": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_mkt_management": {
+      "department": "运营域",
+      "contacts": [
+        "曹仰燊"
+      ],
+      "emails": [
+        "ceecao@kn.group"
+      ]
+    },
+    "e_biz_dscentral": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_superset_exp": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_gov_zombie": {
+      "department": "数据开发",
+      "contacts": [
+        "翟爽"
+      ],
+      "emails": [
+        "riverzhai@kn.group"
+      ]
+    },
+    "e_ad_agent": {
+      "department": "投放域",
+      "contacts": [
+        "童洪波"
+      ],
+      "emails": [
+        "hongbotong@kn.group"
+      ]
+    },
+    "e_superset_helios": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_biz_r": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_ds_develop_products": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_report_atx": {
+      "department": "资管运营组",
+      "contacts": [
+        "董国伟"
+      ],
+      "emails": [
+        "gavindong@kn.group"
+      ]
+    },
+    "e_load2": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_mx_eye": {
+      "department": "前端组",
+      "contacts": [
+        "孔天宇"
+      ],
+      "emails": [
+        "tianyukong@kn.group"
+      ]
+    },
+    "e_snperset_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_superset": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_import": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_audit": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_janus": {
+      "department": "组件研发组",
+      "contacts": [
+        "陈潇"
+      ],
+      "emails": [
+        "vexchen@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis_add_dd_admin": {
+      "department": "经营分析组",
+      "contacts": [
+        "吕召伟"
+      ],
+      "emails": [
+        "leolyu@kn.group"
+      ]
+    },
+    "e_guanyuan_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "吕召伟"
+      ],
+      "emails": [
+        "leolyu@kn.group"
+      ]
+    },
+    "e_fox_bi": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_guanyuan_product": {
+      "department": "产品部",
+      "contacts": [
+        "张峻"
+      ],
+      "emails": [
+        "junzhang@kn.group"
+      ]
+    },
+    "e_metabase2": {
+      "department": "数据开发组",
+      "contacts": [
+        "梁妙"
+      ],
+      "emails": [
+        "miraliang@kn.group"
+      ]
+    },
+    "e_adhoc_fox": {
+      "department": "贷后业务组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    },
+    "e_superset_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_tmk_dwb": {
+      "department": "用户增长组",
+      "contacts": [
+        "杨莹",
+        "郭雨凝"
+      ],
+      "emails": [
+        "yayioyang@kn.group",
+        "elenaguo@kn.group"
+      ]
+    },
+    "e_jupyter_develop_bi": {
+      "department": "数据开发",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_cd_wr": {
+      "department": "触达系统组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_adhoc_fox_capital": {
+      "department": "贷后业务组",
+      "contacts": [
+        "刘建波"
+      ],
+      "emails": [
+        "jianboliu@kn.group"
+      ]
+    },
+    "e_ds_develop_bi": {
+      "department": "数据开发",
+      "contacts": [
+        "朱会明"
+      ],
+      "emails": [
+        "brightonzhu@kn.group"
+      ]
+    },
+    "e_biz_w": {
+      "department": "信贷平台部",
+      "contacts": [
+        "张罗陶"
+      ],
+      "emails": [
+        "lotuszhang@kn.group"
+      ]
+    },
+    "e_argus_model_ai": {
+      "department": "用户中心组",
+      "contacts": [
+        "龚志强"
+      ],
+      "emails": [
+        "brucegong@kn.group"
+      ]
+    },
+    "e_ds_qa": {
+      "department": "质量效能部",
+      "contacts": [
+        "朱莎莎"
+      ],
+      "emails": [
+        "zhushasha@kn.group"
+      ]
+    },
+    "e_fuxi": {
+      "department": "数据开发",
+      "contacts": [
+        "张恒阳"
+      ],
+      "emails": [
+        "owenzhang@kn.group"
+      ]
+    },
+    "e_superset_develop_dmp": {
+      "department": "在线特征组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_superset_develop_dd": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_superset_develop_dd_viewer": {
+      "department": "合规业务组",
+      "contacts": [
+        "黄超"
+      ],
+      "emails": [
+        "huangchao@kn.group"
+      ]
+    },
+    "e_ds_operatanalysis": {
+      "department": "经营分析组",
+      "contacts": [
+        "吕召伟"
+      ],
+      "emails": [
+        "leolyu@kn.group"
+      ]
+    },
+    "e_featuresys_public": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_develop_finance": {
+      "department": "财务组",
+      "contacts": [
+        "黄天成"
+      ],
+      "emails": [
+        "neekityhuang@kn.group"
+      ]
+    },
+    "e_bigdata_platform": {
+      "department": "组件研发组",
+      "contacts": [
+        "蔡鹏鹏"
+      ],
+      "emails": [
+        "jerrycai@kn.group"
+      ]
+    },
+    "e_feature_dw": {
+      "department": "离线标签组",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_jupyter_develop_product": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_ds_wd_data": {
+      "department": "唯渡",
+      "contacts": [
+        "杜艳华"
+      ],
+      "emails": [
+        "elsadu@weidu.co"
+      ]
+    },
+    "e_ds_develop_product": {
+      "department": "离线标签",
+      "contacts": [
+        "肖静"
+      ],
+      "emails": [
+        "jingxiao@kn.group"
+      ]
+    },
+    "e_superset_businessanalysis_admin": {
+      "department": "商业分析组",
+      "contacts": [
+        "奚之明"
+      ],
+      "emails": [
+        "xizhiming@kn.group"
+      ]
+    },
+    "e_ds_oa": {
+      "department": "OA组",
+      "contacts": [
+        "范春波"
+      ],
+      "emails": [
+        "robfan@kn.group"
+      ]
+    },
+    "e_marketing_ma": {
+      "department": "运营域",
+      "contacts": [
+        "王春雷"
+      ],
+      "emails": [
+        "emmawang@kn.group"
+      ]
+    },
+    "e_ddp": {
+      "department": "组件研发组",
+      "contacts": [
+        "刘壮"
+      ],
+      "emails": [
+        "strongliu@kn.group"
+      ]
+    },
+    "e_feature_migrate": {
+      "department": "数据开发组",
+      "contacts": [
+        "何通军"
+      ],
+      "emails": [
+        "johnhe@kn.group"
+      ]
+    },
+    "e_adhoc_service": {
+      "department": "数据开发组",
+      "contacts": [
+        "吴奎",
+        "邓保保"
+      ],
+      "emails": [
+        "kuiwu@kn.group",
+        "enzodeng@kn.group"
+      ]
+    }
+  }
+}

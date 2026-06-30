@@ -1,0 +1,112 @@
+{
+  "name": "异常通知联系人表单每日同步到本机CSV",
+  "nodes": [
+    {
+      "parameters": {
+        "rule": {
+          "interval": [
+            {
+              "field": "cronExpression",
+              "expression": "0 0 12 * * *"
+            }
+          ]
+        }
+      },
+      "type": "n8n-nodes-base.scheduleTrigger",
+      "typeVersion": 1.2,
+      "position": [
+        -600,
+        0
+      ],
+      "id": "4530c2fe-0d64-4c92-bfd8-c2fcbb718bc7",
+      "name": "每天12点触发"
+    },
+    {
+      "parameters": {},
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -600,
+        180
+      ],
+      "id": "0c05e09c-67ea-4cad-9e7f-0fc6e2cebdc5",
+      "name": "手动测试触发"
+    },
+    {
+      "parameters": {
+        "method": "GET",
+        "url": "https://docs.google.com/spreadsheets/d/16cZaIr0YupjC2P65O6Y3YdtJmznfoOqS-gq-bk1TGQI/export?format=csv&gid=998319904",
+        "responseFormat": "text",
+        "options": {
+          "timeout": 30000
+        }
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        -320,
+        80
+      ],
+      "id": "e9b35cc2-f326-45ca-a31f-0a3b1423b44d",
+      "name": "Fetch Form Responses CSV"
+    },
+    {
+      "parameters": {
+        "jsCode": "\nconst fs = require('fs');\n\nconst CONTACT_CSV_PATH = '/data/alert-contact-mapping.csv';\n\nconst countryOwners = {\n  cn: { country: '中国', contacts: ['张恒阳', '宗美晨'], emails: ['owenzhang@kn.group', 'rockyzong@kn.group'] },\n  ine: { country: '印尼', contacts: ['何柳琴', '翟爽'], emails: ['gretchenhe@kn.group', 'riverzhai@kn.group'] },\n  th: { country: '泰国', contacts: ['黄启龙', '朱会明'], emails: ['qilonghuang@kn.group', 'brightonzhu@kn.group'] },\n  ph: { country: '菲律宾', contacts: ['汤伟', '陈江川'], emails: ['simontang@kn.group', 'jiangchuanchen@kn.group'] },\n  pk: { country: '巴基斯坦', contacts: ['余红叶', '穆晋杰'], emails: ['adamyu@kn.group', 'moonmu@kn.group'] },\n  mx: { country: '墨西哥', contacts: ['吴奎', '邓保保'], emails: ['kuiwu@kn.group', 'enzodeng@kn.group'] },\n};\n\nfunction textFromHttp(item) {\n  for (const key of ['data', 'body', 'response']) {\n    if (typeof item[key] === 'string') return item[key];\n  }\n  if (typeof item === 'string') return item;\n  return '';\n}\n\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [];\n  let field = '';\n  let inQuotes = false;\n  const input = String(text || '').replace(/^\\uFEFF/, '');\n  for (let i = 0; i < input.length; i += 1) {\n    const ch = input[i];\n    if (ch === '\"') {\n      if (inQuotes && input[i + 1] === '\"') {\n        field += '\"';\n        i += 1;\n      } else {\n        inQuotes = !inQuotes;\n      }\n    } else if (ch === ',' && !inQuotes) {\n      row.push(field);\n      field = '';\n    } else if ((ch === '\\n' || ch === '\\r') && !inQuotes) {\n      if (ch === '\\r' && input[i + 1] === '\\n') i += 1;\n      row.push(field);\n      if (row.some((cell) => String(cell).trim())) rows.push(row);\n      row = [];\n      field = '';\n    } else {\n      field += ch;\n    }\n  }\n  row.push(field);\n  if (row.some((cell) => String(cell).trim())) rows.push(row);\n  if (!rows.length) return { headers: [], rows: [] };\n  const headers = rows[0].map((cell) => String(cell || '').trim());\n  return {\n    headers,\n    rows: rows.slice(1).map((cells, index) => {\n      const obj = { __rowNumber: index + 2 };\n      headers.forEach((header, columnIndex) => {\n        obj[header] = String(cells[columnIndex] || '').trim();\n      });\n      return obj;\n    }),\n  };\n}\n\nfunction csvEscape(value) {\n  const text = String(value ?? '');\n  return /[\",\\n\\r]/.test(text) ? '\"' + text.replace(/\"/g, '\"\"') + '\"' : text;\n}\n\nfunction toCsv(headers, rows) {\n  const visibleHeaders = headers.filter((header) => header !== '__rowNumber');\n  return '\\uFEFF' + [\n    visibleHeaders.map(csvEscape).join(','),\n    ...rows.map((row) => visibleHeaders.map((header) => csvEscape(row[header])).join(',')),\n  ].join('\\n') + '\\n';\n}\n\nfunction first(row, keys) {\n  for (const key of keys) {\n    const value = row[key];\n    if (value !== undefined && value !== null && String(value).trim() !== '') return String(value).trim();\n  }\n  return '';\n}\n\nfunction splitPeople(value) {\n  return String(value || '')\n    .split(/[、,，;；/\\\\|\\n\\r\\t]+/)\n    .map((item) => item.trim())\n    .filter(Boolean);\n}\n\nfunction normalizeAccount(value) {\n  return String(value || '').trim().replace(/^u_/i, '').toLowerCase();\n}\n\nfunction canonicalSheet(value) {\n  const text = String(value || '').trim().toLowerCase();\n  if (!text) return '';\n  if (/中国|china|starrocks_cn|\\bcn\\b/.test(text)) return 'cn';\n  if (/印尼|印度尼西亚|indonesia|starrocks_ine|starrocks_id|\\bine\\b|\\bid\\b/.test(text)) return 'ine';\n  if (/泰国|thailand|starrocks_th|\\bth\\b/.test(text)) return 'th';\n  if (/菲律宾|philippines|starrocks_ph|\\bph\\b/.test(text)) return 'ph';\n  if (/巴基斯坦|pakistan|starrocks_pak|starrocks_pk|\\bpak\\b|\\bpk\\b/.test(text)) return 'pk';\n  if (/墨西哥|mexico|starrocks_mex|starrocks_mx|\\bmex\\b|\\bmx\\b/.test(text)) return 'mx';\n  return text;\n}\n\nfunction ensureColumn(headers, candidates) {\n  let key = candidates.find((candidate) => headers.includes(candidate));\n  if (!key) {\n    key = candidates[0];\n    headers.push(key);\n  }\n  return key;\n}\n\nif (!fs.existsSync(CONTACT_CSV_PATH)) {\n  return [{\n    json: {\n      ok: false,\n      error: 'CONTACT_CSV_NOT_FOUND',\n      contactCsvPath: CONTACT_CSV_PATH,\n      message: '请先把初始联系人 CSV 放到 n8n 本机该路径，再运行同步流程。'\n    }\n  }];\n}\n\nconst formRaw = $('Fetch Form Responses CSV').first().json || {};\nconst form = parseCsv(textFromHttp(formRaw));\nconst contactCsvText = fs.readFileSync(CONTACT_CSV_PATH, 'utf8');\nconst contactTable = parseCsv(contactCsvText);\n\nconst countryKey = ensureColumn(contactTable.headers, ['国家', 'country']);\nconst accountKey = ensureColumn(contactTable.headers, ['账号', 'account', 'user', '用户']);\nconst departmentKey = ensureColumn(contactTable.headers, ['数据开发组', '部门', 'department', 'dept']);\nconst contactKey = ensureColumn(contactTable.headers, ['联系人', 'contacts', 'contact']);\nconst emailKey = ensureColumn(contactTable.headers, ['邮箱', 'emails', 'email']);\nconst remarkKey = ensureColumn(contactTable.headers, ['备注', 'remark', 'remarks']);\n\nconst rowByKey = new Map();\nfor (const row of contactTable.rows) {\n  const sheet = canonicalSheet(row[countryKey]);\n  const account = normalizeAccount(row[accountKey]);\n  if (sheet && account) rowByKey.set(sheet + '::' + account, row);\n}\n\nconst latestByKey = new Map();\nfor (const row of form.rows) {\n  const sheet = canonicalSheet(first(row, ['国家', 'country', 'sheet', '集群', 'cluster']));\n  const account = normalizeAccount(first(row, ['账号', 'account', 'user', '用户']));\n  if (!sheet || !account) continue;\n  latestByKey.set(sheet + '::' + account, row);\n}\n\nconst applied = [];\nconst skipped = [];\nfor (const [key, formRow] of latestByKey.entries()) {\n  const [sheet, account] = key.split('::');\n  const targetRow = rowByKey.get(key);\n  const owner = countryOwners[sheet];\n  if (!owner) {\n    skipped.push({ sheet, account, reason: '国家无法识别' });\n    continue;\n  }\n  if (!targetRow) {\n    skipped.push({ sheet, account, reason: '本机联系人 CSV 未找到该账号，未追加，避免误写' });\n    continue;\n  }\n\n  const oldDepartment = targetRow[departmentKey] || '';\n  const oldContacts = targetRow[contactKey] || '';\n  const oldEmails = targetRow[emailKey] || '';\n  const oldRemark = targetRow[remarkKey] || '';\n\n  const newDepartment = first(formRow, ['部门', '数据开发组', 'department', 'dept']) || oldDepartment;\n  const rawContacts = first(formRow, ['修改后联系人', '联系人', 'contacts', 'contact']);\n  const rawEmails = first(formRow, ['修改后邮箱', '邮箱', 'emails', 'email']);\n\n  let contacts = splitPeople(rawContacts);\n  let emails = splitPeople(rawEmails);\n  let defaultedToCountryOwner = false;\n  if (!contacts.length) {\n    contacts = owner.contacts;\n    emails = owner.emails;\n    defaultedToCountryOwner = true;\n  } else if (!emails.length) {\n    skipped.push({ sheet, account, reason: '填写了修改后联系人但修改后邮箱为空，未更新以避免联系人和邮箱不匹配' });\n    continue;\n  }\n\n  const finalContacts = contacts.join('、');\n  const finalEmails = emails.join('、');\n  const fallbackRemark = '表单未填写修改后联系人，已兜底通知国家负责人；请国家负责人自行确认实际负责人并通过联系人调整表单补充。';\n  const finalRemark = defaultedToCountryOwner\n    ? (oldRemark && !oldRemark.includes('表单未填写修改后联系人') ? oldRemark + '；' + fallbackRemark : (oldRemark || fallbackRemark))\n    : oldRemark;\n\n  const changed = newDepartment !== oldDepartment || finalContacts !== oldContacts || finalEmails !== oldEmails || finalRemark !== oldRemark;\n  if (!changed) {\n    skipped.push({ sheet, account, reason: '内容无变化' });\n    continue;\n  }\n\n  targetRow[departmentKey] = newDepartment;\n  targetRow[contactKey] = finalContacts;\n  targetRow[emailKey] = finalEmails;\n  targetRow[remarkKey] = finalRemark;\n  applied.push({\n    country: owner.country,\n    sheet,\n    account,\n    rowNumber: targetRow.__rowNumber,\n    oldDepartment,\n    oldContacts,\n    oldEmails,\n    oldRemark,\n    newDepartment,\n    newContacts: finalContacts,\n    newEmails: finalEmails,\n    newRemark: finalRemark,\n    defaultedToCountryOwner,\n    formTimestamp: first(formRow, ['时间戳记', 'timestamp', 'Timestamp']),\n  });\n}\n\nconst outputCsv = toCsv(contactTable.headers, contactTable.rows);\nfs.writeFileSync(CONTACT_CSV_PATH, outputCsv, 'utf8');\n\nreturn [{\n  json: {\n    ok: true,\n    contactCsvPath: CONTACT_CSV_PATH,\n    formRows: form.rows.length,\n    latestUpdateKeys: latestByKey.size,\n    updateCount: applied.length,\n    skippedCount: skipped.length,\n    applied,\n    skipped,\n    note: '已覆盖写回本机单个联系人 CSV。通知流程后续只需要读取这个 CSV。'\n  }\n}];\n"
+      },
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -40,
+        80
+      ],
+      "id": "c9d732d1-f278-46a4-8b48-544aaac35eca",
+      "name": "Update Local Contact CSV",
+      "notesInFlow": true,
+      "notes": "默认读写 /data/alert-contact-mapping.csv。n8n 需要允许 Code 节点使用 fs：NODE_FUNCTION_ALLOW_BUILTIN=fs。"
+    }
+  ],
+  "connections": {
+    "每天12点触发": {
+      "main": [
+        [
+          {
+            "node": "Fetch Form Responses CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "手动测试触发": {
+      "main": [
+        [
+          {
+            "node": "Fetch Form Responses CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Form Responses CSV": {
+      "main": [
+        [
+          {
+            "node": "Update Local Contact CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "pinData": {},
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "active": false,
+  "versionId": "1fc681d4-3661-4ef7-a0f6-107d47d66caa",
+  "id": "daily-contact-form-sync-local-csv",
+  "tags": []
+}
