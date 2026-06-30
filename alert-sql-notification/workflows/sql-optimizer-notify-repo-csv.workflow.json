@@ -194,7 +194,7 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        51888,
+        51880,
         21296
       ]
     },
@@ -209,8 +209,8 @@
       "type": "n8n-nodes-base.mySql",
       "typeVersion": 2.5,
       "position": [
-        52160,
-        21104
+        52540,
+        21296
       ],
       "alwaysOutputData": true,
       "credentials": {
@@ -229,8 +229,8 @@
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
-        52368,
-        21312
+        52760,
+        21296
       ]
     },
     {
@@ -423,36 +423,15 @@
     },
     {
       "parameters": {
-        "conditions": {
-          "boolean": [
-            {
-              "value1": "={{ Boolean($json.contactOverrideUrl || (($json.notifyConfig || {}).contactOverrideUrl)) }}",
-              "value2": true
-            }
-          ]
-        },
-        "options": {}
-      },
-      "id": "7a1dfbda-7f8b-4bd5-b872-6d5e671aa301",
-      "name": "Has Contact Override URL?",
-      "type": "n8n-nodes-base.if",
-      "typeVersion": 2,
-      "position": [
-        52080,
-        21296
-      ]
-    },
-    {
-      "parameters": {
         "jsCode": "\nconst fs = require('fs');\n\nconst CONTACT_CSV_PATH = '/data/KN-YCGJ-TZ/alert-sql-notification/data/alert-contact-mapping.csv';\n\nfunction parseCsv(text) {\n  const rows = [];\n  let row = [];\n  let field = '';\n  let inQuotes = false;\n  const input = String(text || '').replace(/^\\uFEFF/, '');\n  for (let i = 0; i < input.length; i += 1) {\n    const ch = input[i];\n    if (ch === '\"') {\n      if (inQuotes && input[i + 1] === '\"') {\n        field += '\"';\n        i += 1;\n      } else {\n        inQuotes = !inQuotes;\n      }\n    } else if (ch === ',' && !inQuotes) {\n      row.push(field);\n      field = '';\n    } else if ((ch === '\\n' || ch === '\\r') && !inQuotes) {\n      if (ch === '\\r' && input[i + 1] === '\\n') i += 1;\n      row.push(field);\n      if (row.some((cell) => String(cell).trim())) rows.push(row);\n      row = [];\n      field = '';\n    } else {\n      field += ch;\n    }\n  }\n  row.push(field);\n  if (row.some((cell) => String(cell).trim())) rows.push(row);\n  if (!rows.length) return [];\n  const headers = rows[0].map((cell) => String(cell || '').trim());\n  return rows.slice(1).map((cells, index) => {\n    const obj = { __rowNumber: index + 2, __source: 'repo_csv', __csvPath: CONTACT_CSV_PATH };\n    headers.forEach((header, columnIndex) => {\n      obj[header] = String(cells[columnIndex] || '').trim();\n    });\n    return obj;\n  });\n}\n\nif (!fs.existsSync(CONTACT_CSV_PATH)) {\n  return [{\n    json: {\n      __source: 'repo_csv',\n      __error: 'CONTACT_CSV_NOT_FOUND',\n      __csvPath: CONTACT_CSV_PATH,\n    }\n  }];\n}\n\nconst rows = parseCsv(fs.readFileSync(CONTACT_CSV_PATH, 'utf8'))\n  .filter((row) => String(row['账号'] || row.account || row.user || '').trim());\n\nreturn rows.map((row) => ({ json: row }));\n"
       },
       "id": "74264abc-dfb8-4550-b4a8-0608d24ec9f4",
-      "name": "Fetch Contact Overrides",
+      "name": "Read Contact CSV",
       "type": "n8n-nodes-base.code",
       "typeVersion": 2,
       "position": [
         52320,
-        21184
+        21296
       ],
       "onError": "continueRegularOutput",
       "notesInFlow": true,
@@ -465,7 +444,7 @@
       "type": "n8n-nodes-base.executeCommand",
       "typeVersion": 1,
       "position": [
-        52080,
+        52100,
         21296
       ],
       "id": "4e54ec36-714e-4a47-a696-bd32ff3aeb1f",
@@ -706,22 +685,22 @@
         ]
       ]
     },
-    "Fetch Contact Overrides": {
+    "Pull Contact CSV Repo": {
       "main": [
         [
           {
-            "node": "Get User Info",
+            "node": "Read Contact CSV",
             "type": "main",
             "index": 0
           }
         ]
       ]
     },
-    "Pull Contact CSV Repo": {
+    "Read Contact CSV": {
       "main": [
         [
           {
-            "node": "Fetch Contact Overrides",
+            "node": "Get User Info",
             "type": "main",
             "index": 0
           }
