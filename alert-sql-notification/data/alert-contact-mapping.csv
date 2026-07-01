@@ -5,7 +5,7 @@
 中国,e_fox_public,贷后业务组,刘建波,jianboliu@kn.group,3723
 中国,e_biz_central_vintage,信贷平台部,张罗陶,lotuszhang@kn.group,652995
 中国,e_ds_businessanalysis,商业分析组,奚之明,xizhiming@kn.group,4508
-中国,e_ds_fox_dev,贷后业务组,杜艳华,elsadu@weidu.co,110207
+中国,e_ds_fox_dev,贷后业务组,张恒阳、宗美晨,owenzhang@kn.group、rockyzong@kn.group,110207
 中国,e_fox_api,贷后业务组,刘建波,jianboliu@kn.group,3601019
 中国,e_guanyuan_businessanalysis,商业分析组,奚之明,xizhiming@kn.group,218
 中国,e_guanyuan_wd_data,唯渡,杜艳华,elsadu@weidu.co,0
@@ -181,7 +181,7 @@
 印尼,e_datahub,数据开发组,何柳琴、翟爽,gretchenhe@kn.group、riverzhai@kn.group,0
 印尼,e_ds_businessanalysis,商业分析组,孙云、卞仑,echosun@kn.group、leobian@kn.group,0
 印尼,e_superset_develop_fox,贷后业务组,刘建波,jianboliu@kn.group,2166
-印尼,bigdata,组件研发组,刘壮,strongliu@kn.group,170977
+印尼,bigdata,组件研发组,何柳琴、翟爽,gretchenhe@kn.group、riverzhai@kn.group,170977
 印尼,e_ds_aifox,唯渡,杜艳华,elsadu@weidu.co,110886
 印尼,e_guanyuan_businessanalysis,商业分析组,孙云、卞仑,echosun@kn.group、leobian@kn.group,1140
 印尼,e_metabase,数据开发组,梁妙,miraliang@kn.group,13401501
@@ -270,7 +270,7 @@
 泰国,e_report_biz,信贷平台部,赵祥,xiangzhao@kn.group,194007
 泰国,e_superset_develop_product,离线标签组,肖静,jingxiao@kn.group,0
 泰国,e_superset_operatanalysis,商业分析组,奚之明,xizhiming@kn.group,0
-泰国,e_ds_irsd,创新策略组,万家辉、王凡,jaywan.j@kn.group、derrickwang@kn.group,9671
+泰国,e_ds_irsd,创新策略组,黄启龙、朱会明,qilonghuang@kn.group、brightonzhu@kn.group,9671；表单未填写修改后联系人，已兜底通知国家负责人；请国家负责人自行确认实际负责人并通过联系人调整表单补充。
 泰国,e_guanyuan_model,智能模型中心,周明彦,mingyanzhou@kn.group,5354
 泰国,e_guanyuan_tmk,用户增长组,罗玉瑰,rosieluo@kn.group,21131
 泰国,e_superset_product,产品部,张峻,junzhang@kn.group,0
@@ -369,14 +369,14 @@
 菲律宾,e_superset_develop_finance,财务组,黄天成,neekityhuang@kn.group,183
 菲律宾,e_superset_qa,质量效能部,朱莎莎,zhushasha@kn.group,0
 菲律宾,e_superset_strategy,信贷策略中心,万家辉、王凡,jaywan.j@kn.group、derrickwang@kn.group,18408
-菲律宾,e_ds_model,智能模型中心,周明彦,mingyanzhou@kn.group,1244259
+菲律宾,e_ds_model,智能模型中心,张玉婷,tinazhang@kn.group,1244259
 菲律宾,e_ds_wd_compliance,唯渡,杨朔,Joshuayang@weidu.co,5794
 菲律宾,e_msgsvr_oa,OA组,范春波,robfan@kn.group,3210348
 菲律宾,e_report_biz,信贷平台部,赵祥,xiangzhao@kn.group,6736699
 菲律宾,e_superset_develop_product,离线标签组,肖静,jingxiao@kn.group,1511
 菲律宾,e_superset_operatanalysis,商业分析组,奚之明,xizhiming@kn.group,460
-菲律宾,e_ds_irsd,创新策略组,万家辉、王凡,jaywan.j@kn.group、derrickwang@kn.group,30428
-菲律宾,e_guanyuan_model,智能模型中心,周明彦,mingyanzhou@kn.group,11706
+菲律宾,e_ds_irsd,创新策略组,汤伟、陈江川,simontang@kn.group、jiangchuanchen@kn.group,30428
+菲律宾,e_guanyuan_model,智能模型中心,张玉婷,tinazhang@kn.group,11706
 菲律宾,e_guanyuan_tmk,用户增长组,许诺,lunaxu@kn.group,98753
 菲律宾,e_superset_product,产品部,张峻,junzhang@kn.group,2560
 菲律宾,e_guanyuan_strategy,信贷策略中心,万家辉、王凡,jaywan.j@kn.group、derrickwang@kn.group,55626
@@ -392,7 +392,7 @@
 菲律宾,e_guanyuan_businessanalysis,商业分析组,奚之明,xizhiming@kn.group,1608
 菲律宾,e_guanyuan_wd_data,唯渡,杜艳华,elsadu@weidu.co,22232
 菲律宾,e_superset_develop_fox,贷后业务组,刘建波,jianboliu@kn.group,1665
-菲律宾,e_superset_model,智能模型中心,周明彦,mingyanzhou@kn.group,6312
+菲律宾,e_superset_model,智能模型中心,张玉婷,tinazhang@kn.group,6312
 菲律宾,e_superset_operatanalysis_admin,商业分析组,奚之明,xizhiming@kn.group,39830
 菲律宾,e_data_adload,离线标签组,张峻,junzhang@kn.group,40
 菲律宾,e_datacheck,组件研发组,刘壮,strongliu@kn.group,287723
@@ -409,7 +409,7 @@
 菲律宾,e_superset_tmk,用户增长组,许诺,lunaxu@kn.group,3995
 菲律宾,starrocks_monitor,组件研发组,刘壮,strongliu@kn.group,0
 菲律宾,e_ds_aifox,唯渡,杜艳华,elsadu@weidu.co,55227
-菲律宾,e_ds_strategy,信贷策略中心,万家辉、王凡,jaywan.j@kn.group、derrickwang@kn.group,147831
+菲律宾,e_ds_strategy,信贷策略中心,汤伟、陈江川,simontang@kn.group、jiangchuanchen@kn.group,147831
 菲律宾,e_superset_businessanalysis,商业分析组,奚之明,xizhiming@kn.group,111
 菲律宾,e_superset_efficiency_ai,效率工程部,待确认,,0
 菲律宾,e_superset_wd_data,唯渡,杜艳华,elsadu@weidu.co,2587
