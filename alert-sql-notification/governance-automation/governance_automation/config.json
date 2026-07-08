@@ -1,0 +1,116 @@
+{
+  "version": "2026-07-07-mvp",
+  "schemas": {
+    "abnormal_sql_governance_weekly": "schemas/abnormal_sql_governance_weekly.csv",
+    "ds_task_owner_resolved": "schemas/ds_task_owner_resolved.csv",
+    "ds_owner_pending_confirm": "schemas/ds_owner_pending_confirm.csv"
+  },
+  "upsert": {
+    "governance_key_fields": [
+      "country",
+      "cluster",
+      "source_type",
+      "query_user",
+      "sql_fingerprint"
+    ],
+    "sum_fields": [
+      "alert_count"
+    ],
+    "max_fields": [
+      "history_alert_count",
+      "max_mem_usage",
+      "max_cpu_time",
+      "max_exec_time",
+      "max_scan_rows"
+    ],
+    "min_datetime_fields": [
+      "first_alert_time"
+    ],
+    "max_datetime_fields": [
+      "last_alert_time"
+    ]
+  },
+  "system_accounts": [
+    "admin",
+    "deploy",
+    "root",
+    "system",
+    "ds",
+    "dolphinscheduler",
+    "default"
+  ],
+  "special_group_rules": [
+    {
+      "name": "mexico_aifox_group",
+      "type": "account_cluster",
+      "cluster_aliases": [
+        "starrocks_mex",
+        "starrocks_mx",
+        "mex",
+        "mx",
+        "mexico"
+      ],
+      "account": "e_ds_aifox",
+      "bot_id": "e10c0656-a479-4053-a9cd-18b4d1fe4c87",
+      "mentions": []
+    },
+    {
+      "name": "operation_group",
+      "type": "contact_signal",
+      "signals": [
+        "许诺",
+        "lunaxu@kn.group"
+      ],
+      "bot_id": "66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302",
+      "mentions": []
+    },
+    {
+      "name": "weidu_group",
+      "type": "contact_signal",
+      "signals": [
+        "唯渡",
+        "杜艳华",
+        "elsadu",
+        "@weidu.co"
+      ],
+      "bot_id": "9ce66a04-5acf-4f84-9fc0-c213760bae05",
+      "mentions": []
+    }
+  ],
+  "memory_thresholds_bytes": {
+    "starrocks_ine": 64424509440,
+    "starrocks_pak": 53687091200,
+    "starrocks_ph": 53687091200,
+    "starrocks_th": 53687091200,
+    "starrocks_mex": 53687091200,
+    "starrocks_cn": 53687091200
+  },
+  "level_rules": {
+    "A": [
+      "history_alert_count >= 5",
+      "current_week_alert_count >= 3",
+      "max_mem_usage >= memory_threshold * 1.5",
+      "killed = true and source_type = DS",
+      "last_week_notified = true and still_exists = true"
+    ],
+    "B": [
+      "current_week_alert_count >= 2",
+      "max_mem_usage >= memory_threshold",
+      "source_type = DS and owner resolved"
+    ],
+    "C": [
+      "single alert or waiting observation"
+    ],
+    "D": [
+      "closed or confirmed no action required"
+    ]
+  },
+  "data_source_placeholders": {
+    "fetch_abnormal_sql_rows": "待定：异常 SQL 后台表、API、MySQL 或 StarRocks 查询",
+    "read_existing_governance_records": "待定：Google Sheet、MySQL 或 StarRocks",
+    "write_governance_records": "待定：Google Sheet、MySQL 或 StarRocks",
+    "read_project_owner_mapping": "待定：Google Sheet 项目级负责人表",
+    "read_ds_task_metadata": "待定：Google Sheet 或 DS 元数据导出表"
+  }
+}
+
