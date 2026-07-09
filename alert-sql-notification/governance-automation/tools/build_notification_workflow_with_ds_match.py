@@ -45,7 +45,7 @@ DS_MATCH_JS = r"""const safeFirst = (nodeName) => {
   }
 };
 
-const base = safeFirst('Parse AI Result') || {};
+const base = safeFirst('Execute Skill Prep') || {};
 const inputRows = $input.all().map((item) => item.json || {}).filter((row) => row && Object.keys(row).length > 0);
 
 const DROP_PREFIX_RE = /^\s*drop\s+table\s+(?:if\s+exists\s+)?[`"]?[\w.]+\s*;\s*/i;
@@ -312,7 +312,7 @@ def main() -> None:
         "alwaysOutputData": True,
         "onError": "continueRegularOutput",
         "notesInFlow": True,
-        "notes": "调用子 workflow：DS任务匹配候选查询_execute_workflow。子任务按国家走跳板机，在 SSH 节点机器通过 GitHub 拉取治理自动化代码，并使用 n8n 环境变量中的 DS 密码查询 DS 3.4 元数据候选任务。导入后如 n8n 未自动按名称绑定，请手动选择该子 workflow。",
+        "notes": "调用子 workflow：DS任务匹配候选查询_execute_workflow。子任务按国家走跳板机，在 SSH 节点机器通过 GitHub zip 拉取治理自动化代码，并查询 DS 3.4 元数据候选任务。导入后如 n8n 未自动按名称绑定，请手动选择该子 workflow。",
     }
     merge_node = {
         "parameters": {"jsCode": DS_MATCH_JS},
@@ -328,10 +328,11 @@ def main() -> None:
     add_or_replace_node(workflow, match_node)
     add_or_replace_node(workflow, merge_node)
 
-    connect(workflow, "Parse AI Result", ["Should Match DS Task?"])
-    connect_if(workflow, "Should Match DS Task?", "Match DS Task Candidates", "Has Optimized SQL?")
+    connect(workflow, "Execute Skill Prep", ["Should Match DS Task?"])
+    connect_if(workflow, "Should Match DS Task?", "Match DS Task Candidates", "Call Qwen Chat API")
     connect(workflow, "Match DS Task Candidates", ["Merge DS Task Match"])
-    connect(workflow, "Merge DS Task Match", ["Has Optimized SQL?"])
+    connect(workflow, "Merge DS Task Match", ["Call Qwen Chat API"])
+    connect(workflow, "Parse AI Result", ["Has Optimized SQL?"])
 
     sidecar = node_by_name(workflow, "Build Sidecar Payload")
     sidecar["parameters"]["jsCode"] = patch_sidecar_message(sidecar["parameters"]["jsCode"])
