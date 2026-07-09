@@ -176,7 +176,6 @@ def wattrel_export_command(config: dict[str, str]) -> str:
         value = config.get(source_key, "")
         if value:
             if source_key == "DB_PASSWORD":
-                parts.append(f"export {target_key}='{{{{ $env.{target_key} || '' }}}}'")
                 continue
             parts.append(f"export {target_key}={shlex.quote(value)}")
     return " && ".join(parts)
@@ -190,7 +189,6 @@ def ds_country_export_command(country: str) -> str:
             f"export DS_DB_PORT={shlex.quote(config['port'])}",
             f"export DS_DB_NAME={shlex.quote(config['database'])}",
             f"export DS_DB_USER={shlex.quote(config['user'])}",
-            f"export DS_DB_PASSWORD='{{{{ $env.{config['password_env']} || '' }}}}'",
         ]
     )
 
