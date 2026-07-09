@@ -3,7 +3,6 @@
 
 from __future__ import annotations
 
-import base64
 import json
 import re
 import shlex
@@ -14,7 +13,13 @@ ROOT = Path(__file__).resolve().parents[1]
 ROUTER_INPUT = Path("/Users/jiangchuanchen/Downloads/ds-scheduler-router (1).json")
 WATTREL_CONFIG_INPUT = Path("/Users/jiangchuanchen/Downloads/中国的智能告警生成 (1).json")
 OUTPUT = ROOT / "outputs" / "DS任务匹配候选查询_execute_workflow.json"
-REMOTE_SCRIPT_PATH = ROOT / "remote_scripts" / "ds_match_candidate_query.py"
+REPO_URL = "https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git"
+REPO_BRANCH = "feat/abnormal-sql-governance-automation"
+REMOTE_REPO_DIR = "/tmp/KN-YCGJ-TZ-governance-automation"
+REMOTE_SCRIPT = (
+    REMOTE_REPO_DIR
+    + "/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py"
+)
 
 
 DS_COUNTRY_CONFIG = {
@@ -187,18 +192,45 @@ def ds_country_export_command(country: str) -> str:
 
 
 def remote_command(template: str, country: str) -> str:
-    script_b64 = base64.b64encode(REMOTE_SCRIPT_PATH.read_bytes()).decode("ascii")
     export_parts = [ds_country_export_command(country)]
     wattrel_exports = wattrel_export_command(extract_wattrel_config())
     if wattrel_exports:
         export_parts.append(wattrel_exports)
-    prefix = " && ".join(export_parts) + " && "
-    inner = (
-        prefix
-        + "SCRIPT_B64=" + script_b64 + "; "
-        "printf %s $SCRIPT_B64 | base64 -d >/tmp/ds_match_candidates.py; "
-        f"python3 /tmp/ds_match_candidates.py --country {country}"
-    )
+    exports = "\n".join(export_parts)
+    inner = f"""set -e
+
+REPO={shlex.quote(REMOTE_REPO_DIR)}
+REPO_URL={shlex.quote(REPO_URL)}
+BRANCH={shlex.quote(REPO_BRANCH)}
+
+export GIT_TERMINAL_PROMPT=0
+
+if [ -d "$REPO/.git" ]; then
+  cd "$REPO"
+  git merge --abort >/dev/null 2>&1 || true
+  git rebase --abort >/dev/null 2>&1 || true
+
+  if ! git reset --hard HEAD >/dev/null 2>&1; then
+    cd /tmp
+    rm -rf "$REPO"
+  fi
+fi
+
+if [ ! -d "$REPO/.git" ]; then
+  rm -rf "$REPO"
+  git clone --branch "$BRANCH" "$REPO_URL" "$REPO"
+fi
+
+cd "$REPO"
+git remote set-url origin "$REPO_URL"
+git fetch origin "$BRANCH"
+git checkout -B "$BRANCH" "origin/$BRANCH"
+git reset --hard "origin/$BRANCH"
+
+{exports}
+
+python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)}
+"""
     return template.replace(
         "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "
         + country
