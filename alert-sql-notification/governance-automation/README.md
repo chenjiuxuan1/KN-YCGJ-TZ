@@ -21,6 +21,26 @@ cd alert-sql-notification/governance-automation
 python3 -m unittest tests/test_governance_automation.py
 ```
 
+## DS 国家连接配置
+
+DS 元数据库连接按国家内置非敏感参数，密码必须通过环境变量或 n8n 凭证注入，不提交明文密码。
+
+| 国家 | 集群 | DS 元数据库 | 用户 | 密码环境变量 |
+| --- | --- | --- | --- | --- |
+| 中国 | `starrocks_cn` | `rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com:3306/cn_dolphin` | `cn_dolphin` | `CN_DS_DB_PASSWORD` |
+| 印尼 | `starrocks_ine` | `192.168.25.249:3306/dolphin_scheduler` | `e_ds` | `INE_DS_DB_PASSWORD` |
+| 墨西哥 | `starrocks_mex` | `rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com:3306/dolphin_scheduler` | `e_ds` | `MX_DS_DB_PASSWORD` |
+| 菲律宾 | `starrocks_ph` | `10.20.81.11:3306/dolphin_scheduler` | `a_dolphinscheduler` | `PH_DS_DB_PASSWORD` |
+| 巴基斯坦 | `starrocks_pak` | `rm-gs5zsdzr5kr0sh70p.mysql.singapore.rds.aliyuncs.com:3306/dolphin_scheduler` | `e_ds` | `PK_DS_DB_PASSWORD` |
+| 泰国 | `starrocks_th` | `rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com:3306/dolphin_scheduler` | `a_dolphinscheduler` | `TH_DS_DB_PASSWORD` |
+
+`remote_scripts/ds_match_candidate_query.py` 的连接优先级：
+
+1. 命令行参数 `--ds-db-host/--ds-db-user/--ds-db-password/--ds-db-name`。
+2. 环境变量 `DS_DB_HOST/DS_DB_USER/DS_DB_PASSWORD/DS_DB_NAME`。
+3. 国家内置配置 + 对应国家密码环境变量。
+4. 运行中 DolphinScheduler Java 进程里的 `SPRING_DATASOURCE_*`。
+
 ## 注意事项
 
 - n8n 导出的 workflow JSON 可能包含 API Key、DB 密码等敏感信息，本目录不提交 `outputs/`。

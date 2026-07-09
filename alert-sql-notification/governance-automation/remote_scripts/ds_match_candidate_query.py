@@ -34,6 +34,52 @@ COUNTRY_BY_CLUSTER = {
 VALID_COUNTRIES = {"cn", "ine", "mx", "ph", "pk", "th"}
 
 
+DS_COUNTRY_CONFIG = {
+    "cn": {
+        "host": "rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "cn_dolphin",
+        "user": "cn_dolphin",
+        "password_env": "CN_DS_DB_PASSWORD",
+    },
+    "ine": {
+        "host": "192.168.25.249",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "INE_DS_DB_PASSWORD",
+    },
+    "mx": {
+        "host": "rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "MX_DS_DB_PASSWORD",
+    },
+    "ph": {
+        "host": "10.20.81.11",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "a_dolphinscheduler",
+        "password_env": "PH_DS_DB_PASSWORD",
+    },
+    "pk": {
+        "host": "rm-gs5zsdzr5kr0sh70p.mysql.singapore.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "PK_DS_DB_PASSWORD",
+    },
+    "th": {
+        "host": "rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "a_dolphinscheduler",
+        "password_env": "TH_DS_DB_PASSWORD",
+    },
+}
+
+
 DS_TASK_CANDIDATE_SQL_TEMPLATE = r"""
 SELECT
   p.name AS project_name,
@@ -201,6 +247,23 @@ def parse_mysql_jdbc_url(url: str) -> tuple[str, str, str]:
     return match.group(1), match.group(2) or "3306", match.group(3)
 
 
+def configured_ds_mysql_connection(country: str) -> MysqlConnection | None:
+    config = DS_COUNTRY_CONFIG.get(country)
+    if not config:
+        return None
+    password_env = str(config.get("password_env", ""))
+    password = os.environ.get(password_env, "")
+    if not password:
+        return None
+    return MysqlConnection(
+        host=str(config["host"]),
+        port=str(config["port"]),
+        database=str(config["database"]),
+        user=str(config["user"]),
+        password=password,
+    )
+
+
 def discover_ds_mysql_connection(args: argparse.Namespace, env: dict[str, str]) -> MysqlConnection:
     explicit = MysqlConnection(
         host=args.ds_db_host or os.environ.get("DS_DB_HOST", ""),
@@ -211,6 +274,10 @@ def discover_ds_mysql_connection(args: argparse.Namespace, env: dict[str, str]) 
     )
     if explicit.host and explicit.database and explicit.user and explicit.password:
         return explicit
+
+    configured = configured_ds_mysql_connection(normalize_country(args.country, args.cluster))
+    if configured:
+        return configured
 
     url = (
         env.get("SPRING_DATASOURCE_URL")
@@ -338,9 +405,15 @@ def main() -> None:
         print(json.dumps(error_response("", RuntimeError("INVALID_COUNTRY_OR_CLUSTER")), ensure_ascii=False))
         return
     try:
-        pid = find_ds_pid()
-        env = read_process_env(pid)
-        connection = discover_ds_mysql_connection(args, env)
+        pid = ""
+        env: dict[str, str] = {}
+        configured = configured_ds_mysql_connection(country)
+        if configured:
+            connection = configured
+        else:
+            pid = find_ds_pid()
+            env = read_process_env(pid)
+            connection = discover_ds_mysql_connection(args, env)
         wattrel_connection = discover_wattrel_connection(args)
         sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(limit=max(1, int(args.limit)))
         rows = query_mysql_rows(connection, sql)

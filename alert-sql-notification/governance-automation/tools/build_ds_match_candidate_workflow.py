@@ -17,6 +17,52 @@ OUTPUT = ROOT / "outputs" / "DS任务匹配候选查询_execute_workflow.json"
 REMOTE_SCRIPT_PATH = ROOT / "remote_scripts" / "ds_match_candidate_query.py"
 
 
+DS_COUNTRY_CONFIG = {
+    "cn": {
+        "host": "rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "cn_dolphin",
+        "user": "cn_dolphin",
+        "password_env": "CN_DS_DB_PASSWORD",
+    },
+    "ine": {
+        "host": "192.168.25.249",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "INE_DS_DB_PASSWORD",
+    },
+    "mx": {
+        "host": "rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "MX_DS_DB_PASSWORD",
+    },
+    "ph": {
+        "host": "10.20.81.11",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "a_dolphinscheduler",
+        "password_env": "PH_DS_DB_PASSWORD",
+    },
+    "pk": {
+        "host": "rm-gs5zsdzr5kr0sh70p.mysql.singapore.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "e_ds",
+        "password_env": "PK_DS_DB_PASSWORD",
+    },
+    "th": {
+        "host": "rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com",
+        "port": "3306",
+        "database": "dolphin_scheduler",
+        "user": "a_dolphinscheduler",
+        "password_env": "TH_DS_DB_PASSWORD",
+    },
+}
+
+
 NORMALIZE_JS = r"""const raw = $json || {};
 const cluster = String(raw.cluster || '').trim().toLowerCase();
 const countryRaw = String(raw.country || '').trim().toLowerCase();
@@ -120,14 +166,33 @@ def wattrel_export_command(config: dict[str, str]) -> str:
     for source_key, target_key in mapping.items():
         value = config.get(source_key, "")
         if value:
+            if source_key == "DB_PASSWORD":
+                parts.append(f"export {target_key}='{{{{ $env.{target_key} || '' }}}}'")
+                continue
             parts.append(f"export {target_key}={shlex.quote(value)}")
     return " && ".join(parts)
 
 
+def ds_country_export_command(country: str) -> str:
+    config = DS_COUNTRY_CONFIG[country]
+    return " && ".join(
+        [
+            f"export DS_DB_HOST={shlex.quote(config['host'])}",
+            f"export DS_DB_PORT={shlex.quote(config['port'])}",
+            f"export DS_DB_NAME={shlex.quote(config['database'])}",
+            f"export DS_DB_USER={shlex.quote(config['user'])}",
+            f"export DS_DB_PASSWORD='{{{{ $env.{config['password_env']} || '' }}}}'",
+        ]
+    )
+
+
 def remote_command(template: str, country: str) -> str:
     script_b64 = base64.b64encode(REMOTE_SCRIPT_PATH.read_bytes()).decode("ascii")
+    export_parts = [ds_country_export_command(country)]
     wattrel_exports = wattrel_export_command(extract_wattrel_config())
-    prefix = f"{wattrel_exports} && " if wattrel_exports else ""
+    if wattrel_exports:
+        export_parts.append(wattrel_exports)
+    prefix = " && ".join(export_parts) + " && "
     inner = (
         prefix
         + "SCRIPT_B64=" + script_b64 + "; "

@@ -1,5 +1,8 @@
 import unittest
 import tempfile
+import importlib.util
+import os
+import sys
 from pathlib import Path
 
 from governance_automation.level_classifier import classify_governance_level, score_abnormal_sql
@@ -17,6 +20,30 @@ from governance_automation.weekly_aggregator import aggregate_abnormal_sql
 
 
 class GovernanceAutomationTests(unittest.TestCase):
+    def test_ds_country_config_uses_password_environment_variable(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        old_value = os.environ.get("MX_DS_DB_PASSWORD")
+        os.environ["MX_DS_DB_PASSWORD"] = "test-password"
+        try:
+            connection = module.configured_ds_mysql_connection("mx")
+        finally:
+            if old_value is None:
+                os.environ.pop("MX_DS_DB_PASSWORD", None)
+            else:
+                os.environ["MX_DS_DB_PASSWORD"] = old_value
+
+        self.assertEqual(connection.host, "rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com")
+        self.assertEqual(connection.database, "dolphin_scheduler")
+        self.assertEqual(connection.user, "e_ds")
+        self.assertEqual(connection.password, "test-password")
+
     def test_sql_fingerprint_masks_literals(self):
         left = build_sql_fingerprint("select * from t where dt = '2026-07-01' and user_id = 123")
         right = build_sql_fingerprint("select * from t where dt = '2026-07-02' and user_id = 456")

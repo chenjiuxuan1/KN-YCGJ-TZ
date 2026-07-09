@@ -85,6 +85,56 @@
     "starrocks_mex": 53687091200,
     "starrocks_cn": 53687091200
   },
+  "ds_country_configs": {
+    "cn": {
+      "cluster": "starrocks_cn",
+      "host": "rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com",
+      "port": 3306,
+      "database": "cn_dolphin",
+      "user": "cn_dolphin",
+      "password_env": "CN_DS_DB_PASSWORD"
+    },
+    "ine": {
+      "cluster": "starrocks_ine",
+      "host": "192.168.25.249",
+      "port": 3306,
+      "database": "dolphin_scheduler",
+      "user": "e_ds",
+      "password_env": "INE_DS_DB_PASSWORD"
+    },
+    "mx": {
+      "cluster": "starrocks_mex",
+      "host": "rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com",
+      "port": 3306,
+      "database": "dolphin_scheduler",
+      "user": "e_ds",
+      "password_env": "MX_DS_DB_PASSWORD"
+    },
+    "ph": {
+      "cluster": "starrocks_ph",
+      "host": "10.20.81.11",
+      "port": 3306,
+      "database": "dolphin_scheduler",
+      "user": "a_dolphinscheduler",
+      "password_env": "PH_DS_DB_PASSWORD"
+    },
+    "pk": {
+      "cluster": "starrocks_pak",
+      "host": "rm-gs5zsdzr5kr0sh70p.mysql.singapore.rds.aliyuncs.com",
+      "port": 3306,
+      "database": "dolphin_scheduler",
+      "user": "e_ds",
+      "password_env": "PK_DS_DB_PASSWORD"
+    },
+    "th": {
+      "cluster": "starrocks_th",
+      "host": "rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com",
+      "port": 3306,
+      "database": "dolphin_scheduler",
+      "user": "a_dolphinscheduler",
+      "password_env": "TH_DS_DB_PASSWORD"
+    }
+  },
   "level_rules": {
     "A": [
       "history_alert_count >= 5",
@@ -113,4 +163,3 @@
     "read_ds_task_metadata": "待定：Google Sheet 或 DS 元数据导出表"
   }
 }
-
