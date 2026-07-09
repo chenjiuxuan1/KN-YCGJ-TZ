@@ -237,13 +237,29 @@ test -s {shlex.quote(REMOTE_SCRIPT)}
 """
 
 
+def candidate_query_command() -> str:
+    return f"""set -e
+
+REPO={shlex.quote(REMOTE_REPO_DIR)}
+SCRIPT={shlex.quote(REMOTE_SCRIPT)}
+
+if [ ! -s "$SCRIPT" ]; then
+  echo "DS_MATCH_CODE_NOT_DEPLOYED: $SCRIPT" >&2
+  echo "Please run the Manual Trigger in this workflow to deploy code first." >&2
+  exit 31
+fi
+
+cd "$REPO"
+"""
+
+
 def remote_command(template: str, country: str) -> str:
     export_parts = [ds_country_export_command(country)]
     wattrel_exports = wattrel_export_command(extract_wattrel_config())
     if wattrel_exports:
         export_parts.append(wattrel_exports)
     exports = "\n".join(export_parts)
-    inner = f"""{checkout_command()}
+    inner = f"""{candidate_query_command()}
 {exports}
 
 python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)}
@@ -284,8 +300,47 @@ def ssh_node_from_router(router: dict, name: str, country: str, position: list[i
     return node
 
 
+def deploy_ssh_node_from_router(router: dict, name: str, country: str, position: list[int]) -> dict:
+    source = node_by_name(router, name)
+    node = {
+        "parameters": {
+            "authentication": "privateKey",
+            "command": source["parameters"]["command"].replace(
+                "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "
+                + country
+                + " --action '{{$json.action}}' --ds-token '{{$json.ds_token}}' --request-id '{{$json.request_id}}' --payload-b64 '{{$json.payload_b64}}'",
+                checkout_command(),
+            ),
+        },
+        "id": {
+            "中国": "4659fa1d-9d81-45fb-b8c7-2e6618d2b1bc",
+            "菲律宾": "7ec63611-8537-4dcc-a88c-401c1b02fecd",
+            "印尼": "23b7e4a1-f282-42fb-a8b9-845c745ad84d",
+            "墨西哥": "d9d7524c-e846-4e6e-a142-09c08cc9597a",
+            "泰国": "8fc7c7ee-0952-4d69-aadc-64154ba9dca5",
+            "巴基斯坦": "d4cf3882-0f83-4ba6-b582-1320db2b7428",
+        }[name],
+        "name": "部署代码-" + name,
+        "type": "n8n-nodes-base.ssh",
+        "typeVersion": source.get("typeVersion", 1),
+        "position": position,
+        "credentials": source.get("credentials"),
+    }
+    return node
+
+
 def build_workflow() -> dict:
     router = json.loads(resolve_router_input().read_text(encoding="utf-8"))
+    deploy_trigger = {
+        "parameters": {},
+        "id": "73a2952b-c5ac-42d5-b41a-93bcff45003a",
+        "name": "Manual Trigger - Deploy Code",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [400, -600],
+        "notesInFlow": True,
+        "notes": "手动执行：在各国 SSH 节点机器拉取/更新 KN-YCGJ-TZ main 分支代码。日常候选查询不会执行 git 更新。",
+    }
     trigger = {
         "parameters": {},
         "id": "54cf84b4-f451-41ee-97fb-4bf597d9f612",
@@ -334,10 +389,23 @@ def build_workflow() -> dict:
         ("泰国", "th", [1136, 216]),
         ("巴基斯坦", "pk", [1136, 360]),
     ]
-    nodes = [trigger, normalize, switch, invalid, parse]
+    deploy_specs = [
+        ("中国", "cn", [736, -960]),
+        ("菲律宾", "ph", [736, -816]),
+        ("印尼", "ine", [736, -672]),
+        ("墨西哥", "mx", [736, -528]),
+        ("泰国", "th", [736, -384]),
+        ("巴基斯坦", "pk", [736, -240]),
+    ]
+    nodes = [deploy_trigger, trigger, normalize, switch, invalid, parse]
+    for name, country, position in deploy_specs:
+        nodes.append(deploy_ssh_node_from_router(router, name, country, position))
     for name, country, position in country_specs:
         nodes.append(ssh_node_from_router(router, name, country, position))
     connections = {
+        "Manual Trigger - Deploy Code": {
+            "main": [[{"node": "部署代码-" + name, "type": "main", "index": 0} for name, _, _ in deploy_specs]]
+        },
         "When Executed by Another Workflow": {
             "main": [[{"node": "Normalize DS Match Request", "type": "main", "index": 0}]]
         },
