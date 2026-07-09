@@ -399,6 +399,26 @@ def table_leaf(table: str) -> str:
     return str(table or "").split(".")[-1]
 
 
+def normalize_name_token(value: str) -> str:
+    return re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
+
+
+def target_task_name_matches(targets: list[str], task_name: str) -> bool:
+    task_token = normalize_name_token(task_name)
+    if not task_token:
+        return False
+    for target in targets:
+        full_token = normalize_name_token(target)
+        leaf_token = normalize_name_token(table_leaf(target))
+        if task_token in {full_token, leaf_token}:
+            return True
+        if full_token and full_token in task_token:
+            return True
+        if leaf_token and leaf_token in task_token:
+            return True
+    return False
+
+
 def table_matches(left: str, right: str) -> bool:
     left_value = str(left or "").lower()
     right_value = str(right or "").lower()
@@ -457,17 +477,24 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         target_overlap = count_table_overlap(source_targets, row_tables)
         table_overlap = count_table_overlap(source_tables, row_tables)
         action_match = row_action == source_action
-        score = (1000 if target_overlap else 0) + (200 if action_match else 0) + (table_overlap * 10)
+        task_name_match = target_task_name_matches(source_targets, str(row.get("task_name", "")))
+        score = (
+            (3000 if task_name_match else 0)
+            + (1000 if target_overlap else 0)
+            + (200 if action_match else 0)
+            + (table_overlap * 10)
+        )
         if target_overlap and row_action and not action_match:
             score -= 80
         score_meta = {
             "row_action": row_action,
             "row_tables": row_tables,
+            "task_name_match": task_name_match,
             "target_overlap": target_overlap,
             "table_overlap": table_overlap,
             "score": score,
         }
-        if target_overlap or table_overlap >= 3:
+        if task_name_match or target_overlap or table_overlap >= 3:
             scored.append((score, row, row_tables, score_meta))
 
         if row_action != source_action or not is_subset(source_tables, row_tables):
@@ -500,11 +527,13 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
     if scored:
         scored.sort(key=lambda item: item[0], reverse=True)
         best_score, best, tables, score_meta = scored[0]
-        confidence = "medium" if score_meta["target_overlap"] else "low"
-        if score_meta["target_overlap"] and score_meta["table_overlap"] >= 5 and score_meta["row_action"] == source_action:
+        confidence = "medium" if (score_meta["task_name_match"] or score_meta["target_overlap"]) else "low"
+        if score_meta["task_name_match"]:
+            confidence = "high"
+        elif score_meta["target_overlap"] and score_meta["table_overlap"] >= 5 and score_meta["row_action"] == source_action:
             confidence = "high"
         best["ds_match_remote_info"] = (
-            f"scored(score={int(best_score)},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
+            f"scored(score={int(best_score)},taskName={int(score_meta['task_name_match'])},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
         )
         best["ds_match_confidence"] = confidence
         meta["match_info"] = best["ds_match_remote_info"]
@@ -512,6 +541,7 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         meta["matched_tables"] = tables
         meta["matched_table_overlap"] = score_meta["table_overlap"]
         meta["matched_target_overlap"] = score_meta["target_overlap"]
+        meta["matched_task_name"] = bool(score_meta["task_name_match"])
         return [best], meta
 
     return [], meta
