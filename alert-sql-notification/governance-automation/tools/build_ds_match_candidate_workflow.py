@@ -17,6 +17,7 @@ ROUTER_INPUT_CANDIDATES = [
 WATTREL_CONFIG_INPUT = Path("/Users/jiangchuanchen/Downloads/中国的智能告警生成 (1).json")
 OUTPUT = ROOT / "outputs" / "DS任务匹配候选查询_execute_workflow.json"
 REPO_URL = "https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git"
+REPO_ZIP_URL = "https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main"
 REPO_BRANCH = "main"
 REMOTE_REPO_DIR = "/tmp/KN-YCGJ-TZ-governance-automation"
 REMOTE_SCRIPT = (
@@ -206,33 +207,45 @@ def checkout_command() -> str:
     return f"""set -e
 
 REPO={shlex.quote(REMOTE_REPO_DIR)}
-REPO_URL={shlex.quote(REPO_URL)}
+ZIP_URL={shlex.quote(REPO_ZIP_URL)}
 BRANCH={shlex.quote(REPO_BRANCH)}
+ZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip
+UNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip
+EXTRACTED_DIR="\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH"
 
-export GIT_TERMINAL_PROMPT=0
+rm -rf "\\$UNZIP_DIR" "\\$ZIP_FILE"
+mkdir -p "\\$UNZIP_DIR"
 
-if [ -d "\\$REPO/.git" ]; then
-  cd "\\$REPO"
-  git merge --abort >/dev/null 2>&1 || true
-  git rebase --abort >/dev/null 2>&1 || true
-
-  if ! git reset --hard HEAD >/dev/null 2>&1; then
-    cd /tmp
-    rm -rf "\\$REPO"
-  fi
+if command -v curl >/dev/null 2>&1; then
+  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o "\\$ZIP_FILE" "\\$ZIP_URL"
+elif command -v wget >/dev/null 2>&1; then
+  wget -O "\\$ZIP_FILE" "\\$ZIP_URL"
+else
+  echo "NO_DOWNLOADER: curl or wget is required" >&2
+  exit 32
 fi
 
-if [ ! -d "\\$REPO/.git" ]; then
-  rm -rf "\\$REPO"
-  git clone --branch "\\$BRANCH" "\\$REPO_URL" "\\$REPO"
+if [ ! -s "\\$ZIP_FILE" ]; then
+  echo "REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE" >&2
+  exit 33
 fi
 
-cd "\\$REPO"
-git remote set-url origin "\\$REPO_URL"
-git fetch origin "\\$BRANCH"
-git checkout -B "\\$BRANCH" "origin/\\$BRANCH"
-git reset --hard "origin/\\$BRANCH"
-git rev-parse --short HEAD
+if command -v unzip >/dev/null 2>&1; then
+  unzip -q "\\$ZIP_FILE" -d "\\$UNZIP_DIR"
+else
+  python3 -m zipfile -e "\\$ZIP_FILE" "\\$UNZIP_DIR"
+fi
+
+if [ ! -d "\\$EXTRACTED_DIR" ]; then
+  echo "REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR" >&2
+  exit 34
+fi
+
+rm -rf "\\$REPO"
+mv "\\$EXTRACTED_DIR" "\\$REPO"
+rm -rf "\\$UNZIP_DIR" "\\$ZIP_FILE"
+
+echo "deployed_from_zip branch=\\$BRANCH repo=\\$REPO"
 test -s {shlex.quote(REMOTE_SCRIPT)}
 """
 
