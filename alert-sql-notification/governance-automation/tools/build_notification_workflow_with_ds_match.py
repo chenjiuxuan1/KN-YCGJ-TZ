@@ -128,6 +128,45 @@ const sourceSql = String(
 const sourceNorm = normalizeSql(sourceSql);
 const source = extractActionTables(sourceNorm);
 
+const remoteBest = inputRows.find((row) => {
+  if (!row) return false;
+  const hasLocation = Boolean(row.project_name || row.workflow_name || row.task_name);
+  const fromRemoteMatcher = Boolean(row.ds_match_candidate_success || row.ds_match_remote_info || row.ds_match_confidence);
+  return hasLocation && fromRemoteMatcher;
+});
+
+if (remoteBest) {
+  const dsInfo = {
+    project: String(remoteBest.project_name || '').trim(),
+    workflow: String(remoteBest.workflow_name || '').trim(),
+    task: String(remoteBest.task_name || '').trim(),
+    workflowOwner: String(remoteBest.workflow_owner || '').trim(),
+    taskCreator: String(remoteBest.task_creator || '').trim(),
+    countryName: countryNameFromCluster(base.cluster || base.country || remoteBest.ds_match_candidate_country),
+    matchInfo: String(remoteBest.ds_match_remote_info || remoteBest.ds_match_info || 'remote-candidate').trim(),
+    confidence: String(remoteBest.ds_match_confidence || '').trim(),
+    action: source.action,
+    tables: source.tables,
+  };
+
+  return [{ json: {
+    ...base,
+    dsTaskMatchOk: true,
+    dsTaskMatchInfo: dsInfo.matchInfo,
+    dsTaskMatchConfidence: dsInfo.confidence,
+    dsTaskMatchAction: source.action,
+    dsTaskMatchTables: source.tables,
+    dsTaskCandidateCount: Number(remoteBest.ds_match_candidate_count || inputRows.length || 1),
+    dsInfo,
+    dsProject: dsInfo.project,
+    dsWorkflow: dsInfo.workflow,
+    dsTask: dsInfo.task,
+    dsWorkflowOwner: dsInfo.workflowOwner,
+    dsTaskCreator: dsInfo.taskCreator,
+    dsCountryName: dsInfo.countryName,
+  }}];
+}
+
 const candidates = inputRows
   .filter((row) => candidateSql(row))
   .map((row) => {
@@ -249,6 +288,23 @@ def patch_sidecar_message(js_code: str) -> str:
 
 
 def patch_webhook_response(js_code: str) -> str:
+    js_code = js_code.replace(
+        "const base = $('Build Langfuse Batch').first().json || {};\nconst notify = $json || {};",
+        "const safeNodeJson = (nodeName) => {\n"
+        "  try {\n"
+        "    const node = $(nodeName).first();\n"
+        "    return node && node.json ? node.json : {};\n"
+        "  } catch (error) {\n"
+        "    return {};\n"
+        "  }\n"
+        "};\n"
+        "const notify = $json || {};\n"
+        "const base = {\n"
+        "  ...safeNodeJson('Build Langfuse Batch'),\n"
+        "  ...safeNodeJson('Merge DS Task Match'),\n"
+        "  ...safeNodeJson('Build Sidecar Payload'),\n"
+        "};",
+    )
     if "const dsInfoText" not in js_code:
         js_code = js_code.replace(
             "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();",
@@ -273,8 +329,17 @@ def patch_webhook_response(js_code: str) -> str:
             "    dsTaskCreator: textOf(base.dsTaskCreator),\n"
             "    dsCountryName: textOf(base.dsCountryName),\n"
             "    dsTaskMatchInfo: textOf(base.dsTaskMatchInfo),\n"
+            "    dsTaskMatchConfidence: textOf(base.dsTaskMatchConfidence),\n"
             "    dsTaskMatchTables: base.dsTaskMatchTables || [],\n"
             "  } : {}),",
+        )
+    elif "dsTaskMatchConfidence:" not in js_code:
+        js_code = js_code.replace(
+            "    dsTaskMatchInfo: textOf(base.dsTaskMatchInfo),\n"
+            "    dsTaskMatchTables: base.dsTaskMatchTables || [],",
+            "    dsTaskMatchInfo: textOf(base.dsTaskMatchInfo),\n"
+            "    dsTaskMatchConfidence: textOf(base.dsTaskMatchConfidence),\n"
+            "    dsTaskMatchTables: base.dsTaskMatchTables || [],",
         )
     return js_code
 
