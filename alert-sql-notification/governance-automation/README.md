@@ -64,7 +64,7 @@ mysql
 1. 中止残留的 merge/rebase。
 2. 重置本地仓库状态。
 3. 如果仓库不存在或损坏，重新 clone。
-4. 拉取 `feat/abnormal-sql-governance-automation` 分支最新代码。
+4. 拉取 `main` 分支最新代码。
 5. 执行 `remote_scripts/ds_match_candidate_query.py`。
 
 ## 注意事项

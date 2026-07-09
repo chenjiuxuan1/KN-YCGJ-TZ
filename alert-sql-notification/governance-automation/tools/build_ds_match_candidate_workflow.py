@@ -14,7 +14,7 @@ ROUTER_INPUT = Path("/Users/jiangchuanchen/Downloads/ds-scheduler-router (1).jso
 WATTREL_CONFIG_INPUT = Path("/Users/jiangchuanchen/Downloads/中国的智能告警生成 (1).json")
 OUTPUT = ROOT / "outputs" / "DS任务匹配候选查询_execute_workflow.json"
 REPO_URL = "https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git"
-REPO_BRANCH = "feat/abnormal-sql-governance-automation"
+REPO_BRANCH = "main"
 REMOTE_REPO_DIR = "/tmp/KN-YCGJ-TZ-governance-automation"
 REMOTE_SCRIPT = (
     REMOTE_REPO_DIR
