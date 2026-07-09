@@ -10,9 +10,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-ROUTER_INPUT = Path("/Users/jiangchuanchen/Downloads/ds-scheduler-router (1).json")
+ROUTER_INPUT_CANDIDATES = [
+    Path("/Users/jiangchuanchen/Downloads/ds-scheduler-router (1).json"),
+    Path("/Users/jiangchuanchen/Downloads/ds-scheduler-router.json"),
+]
 WATTREL_CONFIG_INPUT = Path("/Users/jiangchuanchen/Downloads/中国的智能告警生成 (1).json")
 OUTPUT = ROOT / "outputs" / "DS任务匹配候选查询_execute_workflow.json"
+DEPLOY_OUTPUT = ROOT / "outputs" / "DS任务匹配代码部署.json"
 REPO_URL = "https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git"
 REPO_BRANCH = "main"
 REMOTE_REPO_DIR = "/tmp/KN-YCGJ-TZ-governance-automation"
@@ -191,13 +195,16 @@ def ds_country_export_command(country: str) -> str:
     )
 
 
-def remote_command(template: str, country: str) -> str:
-    export_parts = [ds_country_export_command(country)]
-    wattrel_exports = wattrel_export_command(extract_wattrel_config())
-    if wattrel_exports:
-        export_parts.append(wattrel_exports)
-    exports = "\n".join(export_parts)
-    inner = f"""set -e
+def resolve_router_input() -> Path:
+    for path in ROUTER_INPUT_CANDIDATES:
+        if path.exists():
+            return path
+    expected = ", ".join(str(path) for path in ROUTER_INPUT_CANDIDATES)
+    raise FileNotFoundError(f"Router workflow JSON not found. Expected one of: {expected}")
+
+
+def checkout_command() -> str:
+    return f"""set -e
 
 REPO={shlex.quote(REMOTE_REPO_DIR)}
 REPO_URL={shlex.quote(REPO_URL)}
@@ -226,7 +233,34 @@ git remote set-url origin "$REPO_URL"
 git fetch origin "$BRANCH"
 git checkout -B "$BRANCH" "origin/$BRANCH"
 git reset --hard "origin/$BRANCH"
+git rev-parse --short HEAD
+test -s {shlex.quote(REMOTE_SCRIPT)}
+"""
 
+
+def candidate_query_command() -> str:
+    return f"""set -e
+
+REPO={shlex.quote(REMOTE_REPO_DIR)}
+SCRIPT={shlex.quote(REMOTE_SCRIPT)}
+
+if [ ! -s "$SCRIPT" ]; then
+  echo "DS_MATCH_CODE_NOT_DEPLOYED: $SCRIPT" >&2
+  echo "Please run n8n workflow: DS任务匹配代码部署" >&2
+  exit 31
+fi
+
+cd "$REPO"
+"""
+
+
+def remote_command(template: str, country: str) -> str:
+    export_parts = [ds_country_export_command(country)]
+    wattrel_exports = wattrel_export_command(extract_wattrel_config())
+    if wattrel_exports:
+        export_parts.append(wattrel_exports)
+    exports = "\n".join(export_parts)
+    inner = f"""{candidate_query_command()}
 {exports}
 
 python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)}
@@ -267,8 +301,44 @@ def ssh_node_from_router(router: dict, name: str, country: str, position: list[i
     return node
 
 
+def deploy_ssh_node_from_router(router: dict, name: str, position: list[int]) -> dict:
+    source = node_by_name(router, name)
+    node = {
+        "parameters": {
+            "authentication": "privateKey",
+            "command": source["parameters"]["command"].replace(
+                "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "
+                + {
+                    "中国": "cn",
+                    "菲律宾": "ph",
+                    "印尼": "ine",
+                    "墨西哥": "mx",
+                    "泰国": "th",
+                    "巴基斯坦": "pk",
+                }[name]
+                + " --action '{{$json.action}}' --ds-token '{{$json.ds_token}}' --request-id '{{$json.request_id}}' --payload-b64 '{{$json.payload_b64}}'",
+                checkout_command(),
+            ),
+        },
+        "id": {
+            "中国": "4659fa1d-9d81-45fb-b8c7-2e6618d2b1bc",
+            "菲律宾": "7ec63611-8537-4dcc-a88c-401c1b02fecd",
+            "印尼": "23b7e4a1-f282-42fb-a8b9-845c745ad84d",
+            "墨西哥": "d9d7524c-e846-4e6e-a142-09c08cc9597a",
+            "泰国": "8fc7c7ee-0952-4d69-aadc-64154ba9dca5",
+            "巴基斯坦": "d4cf3882-0f83-4ba6-b582-1320db2b7428",
+        }[name],
+        "name": name,
+        "type": "n8n-nodes-base.ssh",
+        "typeVersion": source.get("typeVersion", 1),
+        "position": position,
+        "credentials": source.get("credentials"),
+    }
+    return node
+
+
 def build_workflow() -> dict:
-    router = json.loads(ROUTER_INPUT.read_text(encoding="utf-8"))
+    router = json.loads(resolve_router_input().read_text(encoding="utf-8"))
     trigger = {
         "parameters": {},
         "id": "54cf84b4-f451-41ee-97fb-4bf597d9f612",
@@ -355,11 +425,51 @@ def build_workflow() -> dict:
     }
 
 
+def build_deploy_workflow() -> dict:
+    router = json.loads(resolve_router_input().read_text(encoding="utf-8"))
+    trigger = {
+        "parameters": {},
+        "id": "73a2952b-c5ac-42d5-b41a-93bcff45003a",
+        "name": "Manual Trigger",
+        "type": "n8n-nodes-base.manualTrigger",
+        "typeVersion": 1,
+        "position": [400, 0],
+    }
+    country_specs = [
+        ("中国", [736, -360]),
+        ("菲律宾", [736, -216]),
+        ("印尼", [736, -72]),
+        ("墨西哥", [736, 72]),
+        ("泰国", [736, 216]),
+        ("巴基斯坦", [736, 360]),
+    ]
+    nodes = [trigger]
+    for name, position in country_specs:
+        nodes.append(deploy_ssh_node_from_router(router, name, position))
+    connections = {
+        "Manual Trigger": {
+            "main": [[{"node": name, "type": "main", "index": 0} for name, _ in country_specs]]
+        }
+    }
+    return {
+        "name": "DS任务匹配代码部署",
+        "nodes": nodes,
+        "pinData": {},
+        "connections": connections,
+        "active": False,
+        "settings": {"executionOrder": "v1"},
+        "tags": [],
+    }
+
+
 def main() -> None:
     workflow = build_workflow()
+    deploy_workflow = build_deploy_workflow()
     OUTPUT.parent.mkdir(parents=True, exist_ok=True)
     OUTPUT.write_text(json.dumps(workflow, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
+    DEPLOY_OUTPUT.write_text(json.dumps(deploy_workflow, ensure_ascii=False, indent=2) + "\n", encoding="utf-8")
     print(f"wrote {OUTPUT}")
+    print(f"wrote {DEPLOY_OUTPUT}")
 
 
 if __name__ == "__main__":
