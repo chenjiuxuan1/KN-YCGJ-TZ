@@ -135,6 +135,9 @@ LIMIT {limit}
 TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 ACTION_RE = re.compile(r"\b(create|insert|update|delete|replace|alter|drop|truncate)\b", re.I)
 CTE_RE = re.compile(r"(?:\bwith|,)\s+([a-zA-Z_][\w]*)\s+as\s*\(", re.I)
+INSERT_TARGET_RE = re.compile(r"\binsert\s+(?:overwrite\s+)?(?:into\s+)?(?:table\s+)?([`\"]?[a-zA-Z_][\w.]*)", re.I)
+CREATE_TARGET_RE = re.compile(r"\bcreate\s+(?:table\s+)?(?:if\s+not\s+exists\s+)?([`\"]?[a-zA-Z_][\w.]*)", re.I)
+UPDATE_TARGET_RE = re.compile(r"\bupdate\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 
 
@@ -369,6 +372,20 @@ def extract_action_tables(sql: str) -> tuple[str, list[str]]:
     return action, extract_sql_tables(normalized)
 
 
+def extract_target_tables(sql: str) -> list[str]:
+    normalized = normalize_sql_text(sql)
+    targets: list[str] = []
+    seen: set[str] = set()
+    for pattern in (INSERT_TARGET_RE, CREATE_TARGET_RE, UPDATE_TARGET_RE):
+        for match in pattern.finditer(normalized):
+            table = str(match.group(1) or "").strip("`\"").lower()
+            if not table or table in NON_TABLE or table in seen:
+                continue
+            seen.add(table)
+            targets.append(table)
+    return targets
+
+
 def is_subset(left: list[str], right: list[str]) -> bool:
     right_set = set(right)
     return all(item in right_set for item in left)
@@ -376,6 +393,32 @@ def is_subset(left: list[str], right: list[str]) -> bool:
 
 def same_set(left: list[str], right: list[str]) -> bool:
     return len(left) == len(right) and is_subset(left, right)
+
+
+def table_leaf(table: str) -> str:
+    return str(table or "").split(".")[-1]
+
+
+def table_matches(left: str, right: str) -> bool:
+    left_value = str(left or "").lower()
+    right_value = str(right or "").lower()
+    if not left_value or not right_value:
+        return False
+    return left_value == right_value or table_leaf(left_value) == table_leaf(right_value)
+
+
+def count_table_overlap(left: list[str], right: list[str]) -> int:
+    matched_right: set[int] = set()
+    count = 0
+    for left_table in left:
+        for index, right_table in enumerate(right):
+            if index in matched_right:
+                continue
+            if table_matches(left_table, right_table):
+                matched_right.add(index)
+                count += 1
+                break
+    return count
 
 
 def candidate_sql(row: dict[str, str]) -> str:
@@ -393,9 +436,11 @@ def candidate_sql(row: dict[str, str]) -> str:
 
 def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, Any]]:
     source_action, source_tables = extract_action_tables(source_sql)
+    source_targets = extract_target_tables(source_sql)
     meta: dict[str, Any] = {
-        "match_mode": "remote_action_table_set",
+        "match_mode": "remote_weighted_target_table",
         "source_action": source_action,
+        "source_target_tables": source_targets,
         "source_tables": source_tables,
         "raw_candidate_count": len(rows),
         "match_info": "no-match",
@@ -406,8 +451,25 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
 
     exact: list[tuple[dict[str, str], list[str]]] = []
     superset: list[tuple[dict[str, str], list[str]]] = []
+    scored: list[tuple[float, dict[str, str], list[str], dict[str, Any]]] = []
     for row in rows:
         row_action, row_tables = extract_action_tables(candidate_sql(row))
+        target_overlap = count_table_overlap(source_targets, row_tables)
+        table_overlap = count_table_overlap(source_tables, row_tables)
+        action_match = row_action == source_action
+        score = (1000 if target_overlap else 0) + (200 if action_match else 0) + (table_overlap * 10)
+        if target_overlap and row_action and not action_match:
+            score -= 80
+        score_meta = {
+            "row_action": row_action,
+            "row_tables": row_tables,
+            "target_overlap": target_overlap,
+            "table_overlap": table_overlap,
+            "score": score,
+        }
+        if target_overlap or table_overlap >= 3:
+            scored.append((score, row, row_tables, score_meta))
+
         if row_action != source_action or not is_subset(source_tables, row_tables):
             continue
         if same_set(source_tables, row_tables):
@@ -418,7 +480,9 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
     if exact:
         best, tables = exact[0]
         best["ds_match_remote_info"] = f"exact({len(exact)})"
+        best["ds_match_confidence"] = "high"
         meta["match_info"] = best["ds_match_remote_info"]
+        meta["confidence"] = "high"
         meta["matched_tables"] = tables
         return [best], meta
 
@@ -427,18 +491,42 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         best, tables = superset[0]
         extra = len([table for table in tables if table not in source_tables])
         best["ds_match_remote_info"] = f"superset(+{extra})"
+        best["ds_match_confidence"] = "high"
         meta["match_info"] = best["ds_match_remote_info"]
+        meta["confidence"] = "high"
         meta["matched_tables"] = tables
+        return [best], meta
+
+    if scored:
+        scored.sort(key=lambda item: item[0], reverse=True)
+        best_score, best, tables, score_meta = scored[0]
+        confidence = "medium" if score_meta["target_overlap"] else "low"
+        if score_meta["target_overlap"] and score_meta["table_overlap"] >= 5 and score_meta["row_action"] == source_action:
+            confidence = "high"
+        best["ds_match_remote_info"] = (
+            f"scored(score={int(best_score)},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
+        )
+        best["ds_match_confidence"] = confidence
+        meta["match_info"] = best["ds_match_remote_info"]
+        meta["confidence"] = confidence
+        meta["matched_tables"] = tables
+        meta["matched_table_overlap"] = score_meta["table_overlap"]
+        meta["matched_target_overlap"] = score_meta["target_overlap"]
         return [best], meta
 
     return [], meta
 
 
 def build_script_filter_sql(source_sql: str, max_terms: int = 12) -> tuple[str, list[str]]:
+    targets = extract_target_tables(source_sql)
     tables = extract_sql_tables(source_sql)
     if not tables:
         return "", []
-    terms = tables[:max_terms]
+    terms: list[str] = []
+    for table in targets + tables:
+        if table not in terms:
+            terms.append(table)
+    terms = terms[:max_terms]
     lowered_script = "LOWER(" + SCRIPT_CONTENT_EXPR + ")"
     like_parts = []
     for table in terms:
