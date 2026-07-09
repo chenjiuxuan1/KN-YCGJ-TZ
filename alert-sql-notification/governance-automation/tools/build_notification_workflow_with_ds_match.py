@@ -312,7 +312,7 @@ def main() -> None:
         "alwaysOutputData": True,
         "onError": "continueRegularOutput",
         "notesInFlow": True,
-        "notes": "调用子 workflow：DS任务匹配候选查询_execute_workflow。子任务按国家走跳板机，从运行中 DS Java 进程环境变量读取真实 MySQL 连接信息，再查询 DS 3.4 元数据候选任务。导入后如 n8n 未自动按名称绑定，请手动选择该子 workflow。",
+        "notes": "调用子 workflow：DS任务匹配候选查询_execute_workflow。子任务按国家走跳板机，在 SSH 节点机器通过 GitHub 拉取治理自动化代码，并使用 n8n 环境变量中的 DS 密码查询 DS 3.4 元数据候选任务。导入后如 n8n 未自动按名称绑定，请手动选择该子 workflow。",
     }
     merge_node = {
         "parameters": {"jsCode": DS_MATCH_JS},
