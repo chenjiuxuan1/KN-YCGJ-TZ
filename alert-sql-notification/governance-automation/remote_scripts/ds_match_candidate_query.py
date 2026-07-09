@@ -106,12 +106,6 @@ SELECT
   td.task_type AS task_type,
   td.flag AS task_flag,
   COALESCE(task_owner.user_name, workflow_owner.user_name, '') AS task_creator,
-  td.task_params AS task_params,
-  JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')) AS raw_script,
-  JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.sql')) AS sql_text,
-  JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')) AS script_text,
-  JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')) AS statement_text,
-  JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')) AS resource_list,
   {script_content_expr} AS script_content,
   {script_content_expr} AS sql_content
 FROM t_ds_project p
@@ -139,6 +133,7 @@ LIMIT {limit}
 
 
 TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
+ACTION_RE = re.compile(r"\b(create|insert|update|delete|replace|alter|drop|truncate)\b", re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 
 
@@ -363,6 +358,80 @@ def extract_sql_tables(sql: str) -> list[str]:
     return tables
 
 
+def extract_action_tables(sql: str) -> tuple[str, list[str]]:
+    normalized = normalize_sql_text(sql)
+    if not normalized:
+        return "", []
+    action_match = ACTION_RE.search(normalized)
+    action = action_match.group(1).lower() if action_match else normalized.split(" ", 1)[0].lower()
+    return action, extract_sql_tables(normalized)
+
+
+def is_subset(left: list[str], right: list[str]) -> bool:
+    right_set = set(right)
+    return all(item in right_set for item in left)
+
+
+def same_set(left: list[str], right: list[str]) -> bool:
+    return len(left) == len(right) and is_subset(left, right)
+
+
+def candidate_sql(row: dict[str, str]) -> str:
+    return str(
+        row.get("sql_content")
+        or row.get("script_content")
+        or row.get("raw_script")
+        or row.get("sql_text")
+        or row.get("script_text")
+        or row.get("statement_text")
+        or row.get("resource_list")
+        or ""
+    )
+
+
+def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    source_action, source_tables = extract_action_tables(source_sql)
+    meta: dict[str, Any] = {
+        "match_mode": "remote_action_table_set",
+        "source_action": source_action,
+        "source_tables": source_tables,
+        "raw_candidate_count": len(rows),
+        "match_info": "no-match",
+    }
+    if not source_action or not source_tables:
+        meta["match_info"] = "no-action-or-table"
+        return [], meta
+
+    exact: list[tuple[dict[str, str], list[str]]] = []
+    superset: list[tuple[dict[str, str], list[str]]] = []
+    for row in rows:
+        row_action, row_tables = extract_action_tables(candidate_sql(row))
+        if row_action != source_action or not is_subset(source_tables, row_tables):
+            continue
+        if same_set(source_tables, row_tables):
+            exact.append((row, row_tables))
+        else:
+            superset.append((row, row_tables))
+
+    if exact:
+        best, tables = exact[0]
+        best["ds_match_remote_info"] = f"exact({len(exact)})"
+        meta["match_info"] = best["ds_match_remote_info"]
+        meta["matched_tables"] = tables
+        return [best], meta
+
+    if superset:
+        superset.sort(key=lambda item: len([table for table in item[1] if table not in source_tables]))
+        best, tables = superset[0]
+        extra = len([table for table in tables if table not in source_tables])
+        best["ds_match_remote_info"] = f"superset(+{extra})"
+        meta["match_info"] = best["ds_match_remote_info"]
+        meta["matched_tables"] = tables
+        return [best], meta
+
+    return [], meta
+
+
 def build_script_filter_sql(source_sql: str, max_terms: int = 12) -> tuple[str, list[str]]:
     tables = extract_sql_tables(source_sql)
     if not tables:
@@ -384,6 +453,7 @@ def success_response(
     rows: list[dict[str, str]],
     wattrel_connection: MysqlConnection | None = None,
     filter_tables: list[str] | None = None,
+    match_meta: dict[str, Any] | None = None,
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
         "ds_pid": pid,
@@ -394,6 +464,8 @@ def success_response(
         "wattrel_configured": bool(wattrel_connection),
         "filter_tables": filter_tables or [],
     }
+    if match_meta:
+        meta.update(match_meta)
     if wattrel_connection:
         meta["wattrel_host"] = wattrel_connection.host
         meta["wattrel_port"] = wattrel_connection.port
@@ -467,9 +539,10 @@ def main() -> None:
             script_filter_sql=script_filter_sql,
         )
         rows = query_mysql_rows(connection, sql)
+        rows, match_meta = pick_best_match(source_sql, rows) if source_sql else (rows[:1], {})
         print(
             json.dumps(
-                success_response(country, pid, connection, rows, wattrel_connection, filter_tables),
+                success_response(country, pid, connection, rows, wattrel_connection, filter_tables, match_meta),
                 ensure_ascii=False,
             )
         )
