@@ -134,6 +134,7 @@ LIMIT {limit}
 
 TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 ACTION_RE = re.compile(r"\b(create|insert|update|delete|replace|alter|drop|truncate)\b", re.I)
+CTE_RE = re.compile(r"(?:\bwith|,)\s+([a-zA-Z_][\w]*)\s+as\s*\(", re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 
 
@@ -344,11 +345,12 @@ def normalize_sql_text(sql: str) -> str:
 
 def extract_sql_tables(sql: str) -> list[str]:
     normalized = normalize_sql_text(sql)
+    cte_names = {match.group(1).lower() for match in CTE_RE.finditer(normalized)}
     tables: list[str] = []
     seen: set[str] = set()
     for match in TABLE_RE.finditer(normalized):
         table = str(match.group(1) or "").strip("`\"").lower()
-        if not table or table in NON_TABLE:
+        if not table or table in NON_TABLE or table in cte_names:
             continue
         if table not in seen:
             seen.add(table)

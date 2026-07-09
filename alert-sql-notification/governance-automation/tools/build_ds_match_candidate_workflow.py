@@ -130,6 +130,18 @@ const rows = Array.isArray(parsed.data) ? parsed.data : [];
 if (!parsed.success) {
   return [{ json: { ...parsed, data: [], candidate_count: 0 } }];
 }
+if (!rows.length) {
+  return [{ json: {
+    ...parsed,
+    data: [],
+    candidate_count: 0,
+    ds_match_candidate_success: true,
+    ds_match_candidate_country: parsed.country || '',
+    ds_match_candidate_count: 0,
+    dsTaskMatchOk: false,
+    dsTaskMatchInfo: (parsed.meta && parsed.meta.match_info) || 'no-match',
+  }}];
+}
 return rows.map((row) => ({ json: {
   ...row,
   ds_match_candidate_success: true,
