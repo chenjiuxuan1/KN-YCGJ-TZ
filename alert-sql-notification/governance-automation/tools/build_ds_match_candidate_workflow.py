@@ -211,27 +211,27 @@ BRANCH={shlex.quote(REPO_BRANCH)}
 
 export GIT_TERMINAL_PROMPT=0
 
-if [ -d "$REPO/.git" ]; then
-  cd "$REPO"
+if [ -d "\\$REPO/.git" ]; then
+  cd "\\$REPO"
   git merge --abort >/dev/null 2>&1 || true
   git rebase --abort >/dev/null 2>&1 || true
 
   if ! git reset --hard HEAD >/dev/null 2>&1; then
     cd /tmp
-    rm -rf "$REPO"
+    rm -rf "\\$REPO"
   fi
 fi
 
-if [ ! -d "$REPO/.git" ]; then
-  rm -rf "$REPO"
-  git clone --branch "$BRANCH" "$REPO_URL" "$REPO"
+if [ ! -d "\\$REPO/.git" ]; then
+  rm -rf "\\$REPO"
+  git clone --branch "\\$BRANCH" "\\$REPO_URL" "\\$REPO"
 fi
 
-cd "$REPO"
-git remote set-url origin "$REPO_URL"
-git fetch origin "$BRANCH"
-git checkout -B "$BRANCH" "origin/$BRANCH"
-git reset --hard "origin/$BRANCH"
+cd "\\$REPO"
+git remote set-url origin "\\$REPO_URL"
+git fetch origin "\\$BRANCH"
+git checkout -B "\\$BRANCH" "origin/\\$BRANCH"
+git reset --hard "origin/\\$BRANCH"
 git rev-parse --short HEAD
 test -s {shlex.quote(REMOTE_SCRIPT)}
 """
@@ -243,13 +243,13 @@ def candidate_query_command() -> str:
 REPO={shlex.quote(REMOTE_REPO_DIR)}
 SCRIPT={shlex.quote(REMOTE_SCRIPT)}
 
-if [ ! -s "$SCRIPT" ]; then
-  echo "DS_MATCH_CODE_NOT_DEPLOYED: $SCRIPT" >&2
+if [ ! -s "\\$SCRIPT" ]; then
+  echo "DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT" >&2
   echo "Please run the Manual Trigger in this workflow to deploy code first." >&2
   exit 31
 fi
 
-cd "$REPO"
+cd "\\$REPO"
 """
 
 
