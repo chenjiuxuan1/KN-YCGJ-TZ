@@ -44,6 +44,57 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(connection.user, "e_ds")
         self.assertEqual(connection.password, "test-password")
 
+    def test_remote_ds_match_does_not_treat_derived_mv_task_as_target_table(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        rows, meta = module.pick_best_match(
+            "insert into dwt.dwt_user_behavior_base_snap select * from dwd.dwd_w_user",
+            [
+                {
+                    "project_name": "实验平台",
+                    "workflow_name": "标签准备",
+                    "task_name": "dwt_user_behavior_base_snap_hot_mv",
+                    "task_type": "SQL",
+                    "script_content": "REFRESH MATERIALIZED VIEW dwt.dwt_user_behavior_base_snap_hot_mv WITH SYNC MODE;",
+                }
+            ],
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(meta["match_info"], "no-match")
+
+    def test_remote_ds_match_allows_exact_target_task_name(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        rows, meta = module.pick_best_match(
+            "insert into dwt.dwt_user_behavior_base_snap select * from dwd.dwd_w_user",
+            [
+                {
+                    "project_name": "实验平台",
+                    "workflow_name": "标签准备",
+                    "task_name": "dwt_user_behavior_base_snap",
+                    "task_type": "SQL",
+                    "script_content": "REFRESH MATERIALIZED VIEW dwt.dwt_user_behavior_base_snap WITH SYNC MODE;",
+                }
+            ],
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["task_name"], "dwt_user_behavior_base_snap")
+        self.assertEqual(meta["confidence"], "high")
+
     def test_sql_fingerprint_masks_literals(self):
         left = build_sql_fingerprint("select * from t where dt = '2026-07-01' and user_id = 123")
         right = build_sql_fingerprint("select * from t where dt = '2026-07-02' and user_id = 456")

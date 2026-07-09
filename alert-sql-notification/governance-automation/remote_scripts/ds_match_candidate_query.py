@@ -404,6 +404,13 @@ def normalize_name_token(value: str) -> str:
 
 
 def target_task_name_matches(targets: list[str], task_name: str) -> bool:
+    """Return true only when the task name is the target table name itself.
+
+    Derived task names such as ``dwt_user_behavior_base_snap_hot_mv`` should not
+    be treated as an exact owner for target table ``dwt_user_behavior_base_snap``.
+    Those are usually materialized views or helper jobs and create false DS
+    ownership matches.
+    """
     task_token = normalize_name_token(task_name)
     if not task_token:
         return False
@@ -411,10 +418,6 @@ def target_task_name_matches(targets: list[str], task_name: str) -> bool:
         full_token = normalize_name_token(target)
         leaf_token = normalize_name_token(table_leaf(target))
         if task_token in {full_token, leaf_token}:
-            return True
-        if full_token and full_token in task_token:
-            return True
-        if leaf_token and leaf_token in task_token:
             return True
     return False
 
