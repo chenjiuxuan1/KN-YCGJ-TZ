@@ -9,6 +9,7 @@ process environment instead of trusting static application.yaml files.
 from __future__ import annotations
 
 import argparse
+import base64
 import csv
 import json
 import os
@@ -80,6 +81,16 @@ DS_COUNTRY_CONFIG = {
 }
 
 
+SCRIPT_CONTENT_EXPR = r"""CONCAT_WS(
+    '\n',
+    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
+    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.sql')), 'null'),
+    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')), 'null'),
+    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')), 'null'),
+    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')), 'null')
+  )"""
+
+
 DS_TASK_CANDIDATE_SQL_TEMPLATE = r"""
 SELECT
   p.name AS project_name,
@@ -101,22 +112,8 @@ SELECT
   JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')) AS script_text,
   JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')) AS statement_text,
   JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')) AS resource_list,
-  CONCAT_WS(
-    '\n',
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.sql')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')), 'null')
-  ) AS script_content,
-  CONCAT_WS(
-    '\n',
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.sql')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')), 'null')
-  ) AS sql_content
+  {script_content_expr} AS script_content,
+  {script_content_expr} AS sql_content
 FROM t_ds_project p
 JOIN t_ds_workflow_definition wd
   ON wd.project_code = p.code
@@ -134,17 +131,15 @@ LEFT JOIN t_ds_user workflow_owner
   ON workflow_owner.id = wd.user_id
 LEFT JOIN t_ds_user task_owner
   ON task_owner.id = td.user_id
-WHERE CONCAT_WS(
-    '\n',
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.sql')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.script')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.statement')), 'null'),
-    NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')), 'null')
-  ) IS NOT NULL
+WHERE {script_content_expr} IS NOT NULL
+  {script_filter_sql}
 ORDER BY p.name, wd.name, td.name
 LIMIT {limit}
 """.strip()
+
+
+TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
+NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 
 
 @dataclass(frozen=True)
@@ -336,12 +331,59 @@ def query_mysql_rows(connection: MysqlConnection, sql: str) -> list[dict[str, st
     return [dict(row) for row in reader]
 
 
+def decode_base64_text(value: str) -> str:
+    if not value:
+        return ""
+    try:
+        return base64.b64decode(value.encode("utf-8"), validate=False).decode("utf-8", errors="ignore")
+    except Exception:
+        return ""
+
+
+def normalize_sql_text(sql: str) -> str:
+    text = str(sql or "")
+    text = re.sub(r"--[^\n]*", " ", text)
+    text = re.sub(r"/\*[\s\S]*?\*/", " ", text)
+    return " ".join(text.lower().split())
+
+
+def extract_sql_tables(sql: str) -> list[str]:
+    normalized = normalize_sql_text(sql)
+    tables: list[str] = []
+    seen: set[str] = set()
+    for match in TABLE_RE.finditer(normalized):
+        table = str(match.group(1) or "").strip("`\"").lower()
+        if not table or table in NON_TABLE:
+            continue
+        if table not in seen:
+            seen.add(table)
+            tables.append(table)
+    # Prefer fully-qualified names first; they are much more selective.
+    tables.sort(key=lambda value: (0 if "." in value else 1, len(value)))
+    return tables
+
+
+def build_script_filter_sql(source_sql: str, max_terms: int = 12) -> tuple[str, list[str]]:
+    tables = extract_sql_tables(source_sql)
+    if not tables:
+        return "", []
+    terms = tables[:max_terms]
+    lowered_script = "LOWER(" + SCRIPT_CONTENT_EXPR + ")"
+    like_parts = []
+    for table in terms:
+        # table tokens come from a restrictive regex, but keep SQL escaping anyway.
+        escaped = table.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
+        like_parts.append(f"{lowered_script} LIKE '%{escaped}%' ESCAPE '\\\\'")
+    return "AND (" + "\n    OR ".join(like_parts) + ")", terms
+
+
 def success_response(
     country: str,
     pid: str,
     connection: MysqlConnection,
     rows: list[dict[str, str]],
     wattrel_connection: MysqlConnection | None = None,
+    filter_tables: list[str] | None = None,
 ) -> dict[str, Any]:
     meta: dict[str, Any] = {
         "ds_pid": pid,
@@ -350,6 +392,7 @@ def success_response(
         "mysql_database": connection.database,
         "mysql_user": connection.user,
         "wattrel_configured": bool(wattrel_connection),
+        "filter_tables": filter_tables or [],
     }
     if wattrel_connection:
         meta["wattrel_host"] = wattrel_connection.host
@@ -384,7 +427,8 @@ def parse_args() -> argparse.Namespace:
     parser = argparse.ArgumentParser(description="Query DS task candidates for abnormal SQL matching.")
     parser.add_argument("--country", default="", help="Country code: cn, ine, mx, ph, pk, th.")
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
-    parser.add_argument("--limit", type=int, default=50000, help="Max DS task candidates to return.")
+    parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
+    parser.add_argument("--sql-text-b64", default="", help="Base64-encoded abnormal SQL text for DB-side filtering.")
     parser.add_argument("--ds-db-host", default="", help="Optional DS metadata MySQL host override.")
     parser.add_argument("--ds-db-port", default="", help="Optional DS metadata MySQL port override.")
     parser.add_argument("--ds-db-user", default="", help="Optional DS metadata MySQL user override.")
@@ -415,9 +459,20 @@ def main() -> None:
             env = read_process_env(pid)
             connection = discover_ds_mysql_connection(args, env)
         wattrel_connection = discover_wattrel_connection(args)
-        sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(limit=max(1, int(args.limit)))
+        source_sql = decode_base64_text(args.sql_text_b64)
+        script_filter_sql, filter_tables = build_script_filter_sql(source_sql)
+        sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(
+            limit=max(1, int(args.limit)),
+            script_content_expr=SCRIPT_CONTENT_EXPR,
+            script_filter_sql=script_filter_sql,
+        )
         rows = query_mysql_rows(connection, sql)
-        print(json.dumps(success_response(country, pid, connection, rows, wattrel_connection), ensure_ascii=False))
+        print(
+            json.dumps(
+                success_response(country, pid, connection, rows, wattrel_connection, filter_tables),
+                ensure_ascii=False,
+            )
+        )
     except Exception as error:
         print(json.dumps(error_response(country, error), ensure_ascii=False))
 

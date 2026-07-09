@@ -8,7 +8,13 @@ from pathlib import Path
 
 
 ROOT = Path(__file__).resolve().parents[1]
-INPUT = Path("/Users/jiangchuanchen/Downloads/sql优化_部门账号联系人通知 (2).json")
+INPUT_CANDIDATES = [
+    ROOT / "outputs" / "sql优化_部门账号联系人通知_DS匹配增强版.json",
+    Path("/Users/jiangchuanchen/Documents/Codex/2026-07-01/n8n-sql-starrocks-sql-n8n-ai/outputs/sql优化_部门账号联系人通知_DS匹配增强版.json"),
+    Path("/Users/jiangchuanchen/Downloads/sql优化_部门账号联系人通知 (3).json"),
+    Path("/Users/jiangchuanchen/Downloads/sql优化_部门账号联系人通知 (2).json"),
+    Path("/Users/jiangchuanchen/Downloads/sql优化_部门账号联系人通知.json"),
+]
 OUTPUT = ROOT / "outputs" / "sql优化_部门账号联系人通知_DS匹配增强版.json"
 
 
@@ -200,6 +206,14 @@ def node_by_name(workflow: dict, name: str) -> dict:
     return next(node for node in workflow["nodes"] if node["name"] == name)
 
 
+def resolve_input() -> Path:
+    for path in INPUT_CANDIDATES:
+        if path.exists():
+            return path
+    expected = ", ".join(str(path) for path in INPUT_CANDIDATES)
+    raise FileNotFoundError(f"Notification workflow JSON not found. Expected one of: {expected}")
+
+
 def add_or_replace_node(workflow: dict, new_node: dict) -> None:
     workflow["nodes"] = [node for node in workflow["nodes"] if node["name"] != new_node["name"]]
     workflow["nodes"].append(new_node)
@@ -266,7 +280,7 @@ def patch_webhook_response(js_code: str) -> str:
 
 
 def main() -> None:
-    workflow = json.loads(INPUT.read_text(encoding="utf-8"))
+    workflow = json.loads(resolve_input().read_text(encoding="utf-8"))
     workflow["name"] = workflow.get("name", "") + "_DS匹配增强版"
     workflow["active"] = False
 
@@ -300,7 +314,7 @@ def main() -> None:
             },
             "workflowInputs": {
                 "mappingMode": "defineBelow",
-                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\" } }}",
+                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}",
             },
             "options": {},
         },

@@ -1,0 +1,658 @@
+{
+  "name": "DS任务匹配候选查询_execute_workflow",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "73a2952b-c5ac-42d5-b41a-93bcff45003a",
+      "name": "Manual Trigger - Deploy Code",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        400,
+        -600
+      ],
+      "notesInFlow": true,
+      "notes": "手动执行：在各国 SSH 节点机器拉取/更新 KN-YCGJ-TZ main 分支代码。日常候选查询不会执行 git 更新。"
+    },
+    {
+      "parameters": {},
+      "id": "54cf84b4-f451-41ee-97fb-4bf597d9f612",
+      "name": "When Executed by Another Workflow",
+      "type": "n8n-nodes-base.executeWorkflowTrigger",
+      "typeVersion": 1,
+      "position": [
+        400,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json || {};\nconst cluster = String(raw.cluster || '').trim().toLowerCase();\nconst countryRaw = String(raw.country || '').trim().toLowerCase();\nconst map = {\n  starrocks_cn: 'cn',\n  starrocks_ine: 'ine',\n  starrocks_id: 'ine',\n  starrocks_mex: 'mx',\n  starrocks_mx: 'mx',\n  starrocks_pak: 'pk',\n  starrocks_pk: 'pk',\n  starrocks_ph: 'ph',\n  starrocks_th: 'th',\n};\nlet country = countryRaw || map[cluster] || '';\nif (!country) {\n  if (cluster.includes('mex') || cluster.includes('mx')) country = 'mx';\n  else if (cluster.includes('ine') || cluster.includes('indo') || cluster.includes('id')) country = 'ine';\n  else if (cluster.includes('pak') || cluster.includes('pk')) country = 'pk';\n  else if (cluster.includes('ph')) country = 'ph';\n  else if (cluster.includes('th')) country = 'th';\n  else if (cluster.includes('cn') || cluster.includes('china')) country = 'cn';\n}\nconst requestId = String(raw.request_id || raw.queryId || raw.query_id || Date.now()).trim();\nconst sqlText = String(raw.sqlText || raw.sql_text || raw.originalSql || raw.original_sql || '').trim();\nconst sqlTextBase64 = Buffer.from(sqlText, 'utf8').toString('base64');\nreturn [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64 } }];"
+      },
+      "id": "a6d1ff55-d8f0-4658-8d61-1f7e2d0dd8a2",
+      "name": "Normalize DS Match Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        640,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "cn",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    },
+                    "id": "877f65e1-0b82-462d-9cb8-25d32c16b610"
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "60eede2e-d861-4362-a946-6146bca6f114",
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "ph",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "ea18baea-0b77-4f0a-97fe-e6469b6b0e19",
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "ine",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "c6c80c81-7b0d-4cf0-89cb-34d16efb25dc",
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "mx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "658533ad-876e-4047-8a27-a7db245744bd",
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "th",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            },
+            {
+              "conditions": {
+                "options": {
+                  "caseSensitive": true,
+                  "leftValue": "",
+                  "typeValidation": "strict",
+                  "version": 3
+                },
+                "conditions": [
+                  {
+                    "id": "b7cf36bd-eced-41db-809f-1e40505edd75",
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "pk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals",
+                      "name": "filter.operator.equals"
+                    }
+                  }
+                ],
+                "combinator": "and"
+              }
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "d1a936b7-c883-42e5-85e6-820a0189e59a",
+      "name": "按国家分流",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        880,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "return [{ json: {\n  success: false,\n  data: [],\n  candidate_count: 0,\n  error: {\n    code: 'INVALID_COUNTRY',\n    message: 'country must be one of cn, ph, ine, mx, th, pk',\n  },\n}}];"
+      },
+      "id": "f231e80d-2089-4ecb-9331-f126c9cc85c2",
+      "name": "构造请求错误响应",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1120,
+        288
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw = $json || {};\nconst stdout = String(raw.stdout || '').trim();\nconst stderr = String(raw.stderr || '').trim();\nif (Object.prototype.hasOwnProperty.call(raw, 'success') && !stdout) {\n  return [{ json: raw }];\n}\nif (!stdout) {\n  return [{ json: {\n    success: false,\n    data: [],\n    candidate_count: 0,\n    error: { code: 'EMPTY_STDOUT', message: stderr || 'empty stdout' },\n  }}];\n}\nlet parsed;\ntry {\n  parsed = JSON.parse(stdout);\n} catch (error) {\n  return [{ json: {\n    success: false,\n    data: [],\n    candidate_count: 0,\n    error: { code: 'INVALID_JSON_STDOUT', message: String(error), stdout, stderr },\n  }}];\n}\nconst rows = Array.isArray(parsed.data) ? parsed.data : [];\nif (!parsed.success) {\n  return [{ json: { ...parsed, data: [], candidate_count: 0 } }];\n}\nreturn rows.map((row) => ({ json: {\n  ...row,\n  ds_match_candidate_success: true,\n  ds_match_candidate_country: parsed.country || '',\n  ds_match_candidate_count: rows.length,\n}}));"
+      },
+      "id": "a7f1de0e-67d1-4cb1-a917-d68f04c37680",
+      "name": "内容解析",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        1568,
+        0
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@10.20.47.14 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "4659fa1d-9d81-45fb-b8c7-2e6618d2b1bc",
+      "name": "部署代码-中国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -960
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "wGL20YUQ7ZpN1xRA",
+          "name": "中国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh  root@10.20.10.12 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "7ec63611-8537-4dcc-a88c-401c1b02fecd",
+      "name": "部署代码-菲律宾",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -816
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "MQWXoKIQxg8ae2Nt",
+          "name": "菲律宾跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@192.168.21.236  \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "23b7e4a1-f282-42fb-a8b9-845c745ad84d",
+      "name": "部署代码-印尼",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -672
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SyHW5nXUCnuULr2c",
+          "name": "印尼跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@172.20.220.165 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "d9d7524c-e846-4e6e-a142-09c08cc9597a",
+      "name": "部署代码-墨西哥",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -528
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "7oQDoS8H2buTjr7H",
+          "name": "墨西哥跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@192.168.20.236 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "8fc7c7ee-0952-4d69-aadc-64154ba9dca5",
+      "name": "部署代码-泰国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -384
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SliSXhrkW6tiEFFo",
+          "name": "泰国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh root@10.20.84.176  \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nZIP_URL=https://codeload.github.com/chenjiuxuan1/KN-YCGJ-TZ/zip/refs/heads/main\nBRANCH=main\nZIP_FILE=/tmp/KN-YCGJ-TZ-governance-automation-main.zip\nUNZIP_DIR=/tmp/KN-YCGJ-TZ-governance-automation-unzip\nEXTRACTED_DIR=\"\\$UNZIP_DIR/KN-YCGJ-TZ-\\$BRANCH\"\n\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\nmkdir -p \"\\$UNZIP_DIR\"\n\nif command -v curl >/dev/null 2>&1; then\n  curl -fL --retry 3 --connect-timeout 20 --max-time 180 -o \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelif command -v wget >/dev/null 2>&1; then\n  wget -O \"\\$ZIP_FILE\" \"\\$ZIP_URL\"\nelse\n  echo \"NO_DOWNLOADER: curl or wget is required\" >&2\n  exit 32\nfi\n\nif [ ! -s \"\\$ZIP_FILE\" ]; then\n  echo \"REPO_ZIP_DOWNLOAD_EMPTY: \\$ZIP_FILE\" >&2\n  exit 33\nfi\n\nif command -v unzip >/dev/null 2>&1; then\n  unzip -q \"\\$ZIP_FILE\" -d \"\\$UNZIP_DIR\"\nelse\n  python3 -m zipfile -e \"\\$ZIP_FILE\" \"\\$UNZIP_DIR\"\nfi\n\nif [ ! -d \"\\$EXTRACTED_DIR\" ]; then\n  echo \"REPO_ZIP_EXTRACTED_DIR_NOT_FOUND: \\$EXTRACTED_DIR\" >&2\n  exit 34\nfi\n\nrm -rf \"\\$REPO\"\nmv \"\\$EXTRACTED_DIR\" \"\\$REPO\"\nrm -rf \"\\$UNZIP_DIR\" \"\\$ZIP_FILE\"\n\necho \"deployed_from_zip branch=\\$BRANCH repo=\\$REPO\"\ntest -s /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\""
+      },
+      "id": "d4cf3882-0f83-4ba6-b582-1320db2b7428",
+      "name": "部署代码-巴基斯坦",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        736,
+        -240
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "W8NbqcmBWoI5MZ3s",
+          "name": "巴基斯坦跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@10.20.47.14 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com && export DS_DB_PORT=3306 && export DS_DB_NAME=cn_dolphin && export DS_DB_USER=cn_dolphin\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country cn --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "a106a1fd-2dd4-4202-908f-4f7afbd1d420",
+      "name": "中国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -360
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "wGL20YUQ7ZpN1xRA",
+          "name": "中国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh  root@10.20.10.12 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=10.20.81.11 && export DS_DB_PORT=3306 && export DS_DB_NAME=dolphin_scheduler && export DS_DB_USER=a_dolphinscheduler\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country ph --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "c5246327-3efa-4263-b895-a3a19ddf63a6",
+      "name": "菲律宾",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -216
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "MQWXoKIQxg8ae2Nt",
+          "name": "菲律宾跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@192.168.21.236  \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=192.168.25.249 && export DS_DB_PORT=3306 && export DS_DB_NAME=dolphin_scheduler && export DS_DB_USER=e_ds\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country ine --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "dd58f60c-e567-4db3-8e4f-9d14c7624ab1",
+      "name": "印尼",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        -72
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SyHW5nXUCnuULr2c",
+          "name": "印尼跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@172.20.220.165 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=rm-2ev5479nuworkbb0x.mysql.rds.aliyuncs.com && export DS_DB_PORT=3306 && export DS_DB_NAME=dolphin_scheduler && export DS_DB_USER=e_ds\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country mx --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "f78ad601-97e3-4627-921e-0db97b35c331",
+      "name": "墨西哥",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        72
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "7oQDoS8H2buTjr7H",
+          "name": "墨西哥跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh -p 36000 root@192.168.20.236 \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com && export DS_DB_PORT=3306 && export DS_DB_NAME=dolphin_scheduler && export DS_DB_USER=a_dolphinscheduler\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country th --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "b9b65011-f1ef-45d3-b231-f54fcc4b75e7",
+      "name": "泰国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        216
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SliSXhrkW6tiEFFo",
+          "name": "泰国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "=ssh root@10.20.84.176  \"set -e\n\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=/tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py\n\nif [ ! -s \"\\$SCRIPT\" ]; then\n  echo \"DS_MATCH_CODE_NOT_DEPLOYED: \\$SCRIPT\" >&2\n  echo \"Please run the Manual Trigger in this workflow to deploy code first.\" >&2\n  exit 31\nfi\n\ncd \"\\$REPO\"\n\nexport DS_DB_HOST=rm-gs5zsdzr5kr0sh70p.mysql.singapore.rds.aliyuncs.com && export DS_DB_PORT=3306 && export DS_DB_NAME=dolphin_scheduler && export DS_DB_USER=e_ds\n\npython3 /tmp/KN-YCGJ-TZ-governance-automation/alert-sql-notification/governance-automation/remote_scripts/ds_match_candidate_query.py --country pk --sql-text-b64 '{{$json.sqlTextBase64 || \"\"}}'\n\""
+      },
+      "id": "cae6a616-33f8-4fbd-bf04-e35e25d7a2f",
+      "name": "巴基斯坦",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        1136,
+        360
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "W8NbqcmBWoI5MZ3s",
+          "name": "巴基斯坦跳板机"
+        }
+      }
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Manual Trigger - Deploy Code": {
+      "main": [
+        [
+          {
+            "node": "部署代码-中国",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "部署代码-菲律宾",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "部署代码-印尼",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "部署代码-墨西哥",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "部署代码-泰国",
+            "type": "main",
+            "index": 0
+          },
+          {
+            "node": "部署代码-巴基斯坦",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "When Executed by Another Workflow": {
+      "main": [
+        [
+          {
+            "node": "Normalize DS Match Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Normalize DS Match Request": {
+      "main": [
+        [
+          {
+            "node": "按国家分流",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "按国家分流": {
+      "main": [
+        [
+          {
+            "node": "中国",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "菲律宾",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "印尼",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "墨西哥",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "泰国",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "巴基斯坦",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "构造请求错误响应",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "构造请求错误响应": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "中国": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "菲律宾": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "印尼": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "墨西哥": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "泰国": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "巴基斯坦": {
+      "main": [
+        [
+          {
+            "node": "内容解析",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  },
+  "tags": []
+}

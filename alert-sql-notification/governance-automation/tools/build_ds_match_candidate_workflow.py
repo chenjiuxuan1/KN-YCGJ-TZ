@@ -96,7 +96,9 @@ if (!country) {
   else if (cluster.includes('cn') || cluster.includes('china')) country = 'cn';
 }
 const requestId = String(raw.request_id || raw.queryId || raw.query_id || Date.now()).trim();
-return [{ json: { ...raw, country, request_id: requestId } }];"""
+const sqlText = String(raw.sqlText || raw.sql_text || raw.originalSql || raw.original_sql || '').trim();
+const sqlTextBase64 = Buffer.from(sqlText, 'utf8').toString('base64');
+return [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64 } }];"""
 
 
 PARSE_JS = r"""const raw = $json || {};
@@ -273,7 +275,7 @@ def remote_command(template: str, country: str) -> str:
     inner = f"""{candidate_query_command()}
 {exports}
 
-python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)}
+python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}'
 """
     return template.replace(
         "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "

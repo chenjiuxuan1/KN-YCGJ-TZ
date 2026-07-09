@@ -1,0 +1,865 @@
+{
+  "name": "sql优化_部门账号联系人通知_DS匹配增强版_DS匹配增强版",
+  "nodes": [
+    {
+      "parameters": {
+        "httpMethod": "POST",
+        "path": "sql-promotion2",
+        "responseMode": "responseNode",
+        "options": {}
+      },
+      "id": "0687ceb8-bd4c-4c65-aa9b-be70b4485158",
+      "name": "Webhook",
+      "type": "n8n-nodes-base.webhook",
+      "position": [
+        45120,
+        13808
+      ],
+      "webhookId": "sql-promotion1-execute-workflow",
+      "typeVersion": 2
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "O2T5aOGchloFOE69",
+          "mode": "list",
+          "cachedResultUrl": "/workflow/O2T5aOGchloFOE69",
+          "cachedResultName": "异常sql优化skill_execute_workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": "={{ { \"message\": $json.body.message, \"sessionId\": $json.body.sessionId, \"queryId\": $json.body.queryId, \"cluster\": $json.body.cluster, \"user\": $json.body.user, \"executor\": $json.body.executor, \"cpuTime\": $json.body.cpuTime, \"memUsage\": $json.body.memUsage, \"execTime\": $json.body.execTime, \"scanRows\": $json.body.scanRows, \"violationDetail\": $json.body.violationDetail, \"sqlText\": $json.body.sqlText } }}"
+        },
+        "options": {}
+      },
+      "id": "d00fcf19-0d2b-4d3b-a553-4f2197644e70",
+      "name": "Execute Skill Prep",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        45360,
+        13808
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "https://dashscope-intl.aliyuncs.com/compatible-mode/v1/chat/completions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Bearer sk-a3c6dbd6170c4acaade0aecae9fe704a"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"model\": \"qwen3.7-plus\", \"messages\": [ { \"role\": \"system\", \"content\": \"严格根据输入提示完成分析，并且只输出 JSON。不要输出 Markdown，不要输出额外解释。\" }, { \"role\": \"user\", \"content\": $json.prompt || \"\" } ], \"stream\": false } }}",
+        "options": {
+          "timeout": 340000
+        }
+      },
+      "id": "91fe2d3d-b153-4b17-b01a-682bae235a2e",
+      "name": "Call Qwen Chat API",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        45616,
+        13808
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const original = $item(0).$node['Execute Skill Prep'].json || {};\nconst incoming = $json || {};\nconst base = { ...original, ...incoming };\nconst responseNode = incoming;\nconst safeGet = (obj, path) => {\n  let current = obj;\n  for (let i = 0; i < path.length; i += 1) {\n    if (!current || typeof current !== 'object') return undefined;\n    current = current[path[i]];\n  }\n  return current;\n};\nconst firstDefined = (...values) => {\n  for (let i = 0; i < values.length; i += 1) {\n    const value = values[i];\n    if (value !== undefined && value !== null) return value;\n  }\n  return undefined;\n};\nconst toNumber = (value) => {\n  if (value === null || value === undefined || value === '') return undefined;\n  const n = Number(value);\n  return Number.isFinite(n) ? n : undefined;\n};\nconst normalizeTokenUsage = (usage) => {\n  if (!usage || typeof usage !== 'object') return null;\n  const prompt = toNumber(firstDefined(usage.promptTokens, usage.prompt_tokens, usage.inputTokens, usage.input_tokens));\n  const completion = toNumber(firstDefined(usage.completionTokens, usage.completion_tokens, usage.outputTokens, usage.output_tokens));\n  const total = toNumber(firstDefined(usage.totalTokens, usage.total_tokens));\n  if (prompt === undefined && completion === undefined && total === undefined) return null;\n  return {\n    promptTokens: prompt === undefined ? 0 : prompt,\n    completionTokens: completion === undefined ? 0 : completion,\n    totalTokens: total === undefined ? ((prompt === undefined ? 0 : prompt) + (completion === undefined ? 0 : completion)) : total\n  };\n};\nconst cleanSql = (value) => String(value || '')\n  .replace(/^```sql\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .trim();\nconst clip = (value, limit) => {\n  const text = String(value || '').replace(/\\s+/g, ' ').trim();\n  return text.length > limit ? text.slice(0, limit) + '...(truncated)' : text;\n};\nconst getExplainability = (sqlValue) => {\n  const sql = cleanSql(sqlValue);\n  if (!sql) return { explainEligible: false, explainSql: '', explainSkipReason: '缺少可执行 SQL。' };\n  const normalized = sql.replace(/^\\(+/, '').trim();\n  const lower = normalized.toLowerCase();\n  if (/^(with|select)\\b/.test(lower)) return { explainEligible: true, explainSql: sql, explainSkipReason: '' };\n  const selectMatch = normalized.match(/\\bselect\\b[\\s\\S]*$/i);\n  if (/^insert\\s+overwrite\\b/.test(lower) || /^insert\\b/.test(lower)) {\n    if (selectMatch && selectMatch[0]) return { explainEligible: false, explainSql: cleanSql(selectMatch[0]), explainSkipReason: 'INSERT / INSERT OVERWRITE 类型 SQL 默认免 EXPLAIN 通过。' };\n    return { explainEligible: false, explainSql: '', explainSkipReason: 'INSERT / INSERT OVERWRITE 未找到可单独 EXPLAIN 的 SELECT 部分。' };\n  }\n  if (/^create\\b/.test(lower)) {\n    const ctasMatch = normalized.match(/\\bas\\s+(select[\\s\\S]*)$/i);\n    if (ctasMatch && ctasMatch[1]) return { explainEligible: false, explainSql: cleanSql(ctasMatch[1]), explainSkipReason: 'CREATE / CTAS 类型 SQL 默认免 EXPLAIN 通过。' };\n    return { explainEligible: false, explainSql: '', explainSkipReason: 'CREATE / DDL 类型 SQL 默认免 EXPLAIN 通过。' };\n  }\n  if (/^(update|delete|alter|drop|truncate|grant|revoke|use|set|show|desc|explain)\\b/.test(lower)) {\n    return { explainEligible: false, explainSql: '', explainSkipReason: '当前 SQL 类型默认免 EXPLAIN 通过。' };\n  }\n  if (selectMatch && selectMatch[0]) return { explainEligible: true, explainSql: cleanSql(selectMatch[0]), explainSkipReason: '' };\n  return { explainEligible: false, explainSql: '', explainSkipReason: '未识别到可安全执行 EXPLAIN 的查询主体。' };\n};\nconst raw = firstDefined(\n  safeGet(responseNode, ['choices', 0, 'message', 'content']),\n  safeGet(responseNode, ['output', 0, 'content', 0, 'text']),\n  responseNode.output_text,\n  responseNode.text,\n  responseNode.response,\n  ''\n);\nconst responseError = responseNode.error || {};\nconst transportError = String(responseNode.message || responseError.message || responseNode.error || responseNode.statusMessage || '').trim();\nconst isTransportFailure = /timeout|econnaborted|connection was aborted|server is offline|socket hang up|network error|transport error/i.test(transportError);\nconst modelTokenUsage = normalizeTokenUsage(responseNode.tokenUsage)\n  || normalizeTokenUsage(responseNode.usage)\n  || normalizeTokenUsage(safeGet(responseNode, ['response', 'tokenUsage']))\n  || normalizeTokenUsage(safeGet(responseNode, ['response', 'usage']))\n  || null;\nconst sourceSql = cleanSql(firstDefined(safeGet(base, ['evidence', 'queryContext', 'sqlText']), base.sqlText, base.originalSql, ''));\nconst previousOptimizedSql = cleanSql(base.previousOptimizedSql || '');\nconst fallbackSql = previousOptimizedSql || sourceSql;\nconst violation = clip(firstDefined(safeGet(base, ['evidence', 'alert', 'violationDetail']), base.violationDetail, '存在高资源消耗风险'), 180);\nconst fallbackHints = [];\nif (/count\\s*\\(\\s*distinct/i.test(sourceSql)) fallbackHints.push('当前 SQL 含 COUNT DISTINCT，优先检查是否能预聚合、改成分层去重，或缩小参与去重的数据范围。');\nif (/order\\s+by/i.test(sourceSql) && /limit\\s+\\d+/i.test(sourceSql)) fallbackHints.push('当前 SQL 同时存在 ORDER BY 与 LIMIT，优先确认排序列是否必要，避免在大结果集上全量排序。');\nif (/group\\s+by/i.test(sourceSql)) fallbackHints.push('当前 SQL 存在 GROUP BY，优先检查聚合前是否能先过滤、先裁剪分区，减少进入聚合的数据量。');\nif (/join\\s+/i.test(sourceSql)) fallbackHints.push('当前 SQL 存在 JOIN，优先确认 Join key 是否命中分桶/分区，并检查是否存在可下推过滤条件。');\nfallbackHints.push('优先补充分区过滤、减少无效列扫描、避免把全表明细直接送入重聚合或重排序算子。');\nconst genericSummary = fallbackHints.slice(0, 3).join(' ');\nconst ensureShape = (obj, reason) => {\n  const normalized = obj && typeof obj === 'object' ? obj : {};\n  return {\n    result: String(normalized.result || (fallbackSql ? '仅完成结构优化' : '优化未达标，需继续改写')).trim() || '优化未达标，需继续改写',\n    oneLineConclusion: String(normalized.oneLineConclusion || reason || '已生成结构化优化建议，请结合 EXPLAIN 和业务语义人工复核。').trim(),\n    coreIssue: String(normalized.coreIssue || (violation + '；当前证据显示 SQL 需要优先减少扫描和重算子开销。')).trim(),\n    summary: String(normalized.summary || genericSummary).trim(),\n    optimizedSql: cleanSql(normalized.optimizedSql || fallbackSql || ''),\n    equivalenceLevel: String(normalized.equivalenceLevel || (fallbackSql ? '基本等价（待验证）' : '存疑')).trim(),\n    risk: String(normalized.risk || '当前结果可能缺少执行计划佐证，请重点核对业务语义、过滤条件和聚合口径，必要时不要直接执行优化后的 SQL。').trim(),\n    validationAdvice: String(normalized.validationAdvice || '请优先核对分区过滤、Join key、聚合/排序位置以及结果口径；如果环境允许，再执行 EXPLAIN 辅助验证。').trim()\n  };\n};\nconst unwrapJsonCandidate = (value) => {\n  if (typeof value !== 'string') return value;\n  const text = value.trim();\n  const fenced = text.match(/```(?:json)?\\s*([\\s\\S]*?)\\s*```/i);\n  return fenced && fenced[1] ? fenced[1].trim() : text;\n};\nlet parsed;\nlet usedFallback = false;\nif (isTransportFailure) {\n  throw new Error('模型响应超时，工作流已终止：' + (transportError || 'unknown transport error'));\n}\nif (!raw && transportError) {\n  usedFallback = true;\n  parsed = ensureShape({\n    result: fallbackSql ? '仅完成结构优化' : '优化未达标，需继续改写',\n    oneLineConclusion: '模型响应超时，已输出保守版优化建议，请人工复核。',\n    coreIssue: violation + '；当前缺少完整执行证据，只能基于告警和原始 SQL 结构给出保守建议。',\n    summary: genericSummary,\n    optimizedSql: fallbackSql,\n    equivalenceLevel: fallbackSql ? '基本等价（待验证）' : '存疑',\n    risk: '当前建议主要基于原始 SQL 结构和告警信息，缺少稳定的执行计划或完整验证结果，请不要直接执行优化后的 SQL。',\n    validationAdvice: '请优先核对分区过滤、Join key、聚合/排序位置以及结果口径；如果环境允许，再执行 EXPLAIN 辅助验证。'\n  }, '模型响应超时，已输出保守版优化建议，请人工复核。');\n} else {\n  try {\n    const candidate = unwrapJsonCandidate(raw);\n    parsed = typeof candidate === 'string' ? JSON.parse(candidate) : candidate;\n  } catch (error) {\n    usedFallback = true;\n    parsed = ensureShape({\n      result: fallbackSql ? '仅完成结构优化' : '优化未达标，需继续改写',\n      oneLineConclusion: '模型响应超时，已输出保守版优化建议，请人工复核。',\n      coreIssue: violation + '；当前缺少稳定的结构化输出，只能基于告警和原始 SQL 结构给出保守建议。',\n      summary: genericSummary,\n      optimizedSql: fallbackSql,\n      equivalenceLevel: fallbackSql ? '基本等价（待验证）' : '存疑',\n      risk: '当前建议主要基于原始 SQL 结构和告警信息，缺少稳定的执行计划或完整验证结果，请不要直接执行优化后的 SQL。',\n      validationAdvice: '请优先核对分区过滤、Join key、聚合/排序位置以及结果口径；如果环境允许，再执行 EXPLAIN 辅助验证。'\n    }, isTransportFailure ? '模型响应超时，已输出保守版优化建议，请人工复核。' : '已输出保守版优化建议，请人工复核。');\n  }\n}\nparsed = ensureShape(parsed, parsed && parsed.oneLineConclusion ? parsed.oneLineConclusion : '已生成结构化优化建议，请结合 EXPLAIN 和业务语义人工复核。');\nconst optimizedSql = cleanSql(parsed.optimizedSql || fallbackSql || '');\nconst explainInfo = getExplainability(optimizedSql);\nparsed.optimizedSql = optimizedSql;\nconst tokenUsage = modelTokenUsage || { promptTokens: 0, completionTokens: 0, totalTokens: 0 };\nconst previousNodeJson = $item(0).$node['Execute Skill Prep'].json || {};\nconst originalPrompt = String(base.originalPrompt || previousNodeJson.originalPrompt || base.prompt || '').trim();\nreturn [{ json: {\n  ...base,\n  originalPrompt,\n  prompt: String(base.prompt || originalPrompt || '').trim(),\n  retryHistory: Array.isArray(base.retryHistory) ? base.retryHistory : [],\n  optimizationAttempt: Number(base.optimizationAttempt || 1),\n  maxOptimizationAttempts: Number(base.maxOptimizationAttempts || 3),\n  aiRawOutput: typeof raw === 'string' ? raw : JSON.stringify(raw || ''),\n  aiResult: parsed,\n  aiFallbackUsed: usedFallback,\n  tokenUsage,\n  modelTokenUsageRaw: firstDefined(responseNode.tokenUsage, responseNode.usage, safeGet(responseNode, ['response', 'tokenUsage']), safeGet(responseNode, ['response', 'usage']), null),\n  aiModelLookupMeta: { source: 'Call Qwen Chat API', transportError, isTransportFailure },\n  aiApiResponse: responseNode,\n  optimizedSqlExplainEligible: Boolean(explainInfo.explainEligible),\n  optimizedSqlExplainSql: explainInfo.explainSql || '',\n  optimizedSqlExplainSkipReason: explainInfo.explainSkipReason || '',\n  notifyEmail: base.notifyEmail || 'jiangchuanchen@kn.group',\n  notifyEmails: Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : ['jiangchuanchen@kn.group'],\n  shouldRetryAi: (usedFallback && !isTransportFailure) || !Boolean(parsed.optimizedSql),\n  retryReason: usedFallback ? clip(transportError || 'AI 输出不稳定', 240) : (base.retryReason || ''),\n  aiTransportFailure: isTransportFailure\n}}];"
+      },
+      "id": "de578f8e-3f0d-4b5c-815f-16a1a231c318",
+      "name": "Parse AI Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        45872,
+        13808
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "options": {
+            "caseSensitive": true,
+            "leftValue": "",
+            "typeValidation": "strict",
+            "version": 2
+          },
+          "conditions": [
+            {
+              "id": "f52d23b4-e361-482c-b62d-119db01a9f32",
+              "leftValue": "",
+              "rightValue": "",
+              "operator": {
+                "type": "string",
+                "operation": "equals",
+                "name": "filter.operator.equals"
+              }
+            }
+          ],
+          "combinator": "and"
+        },
+        "options": {}
+      },
+      "id": "b141c01b-d929-4e03-963a-4d528447fa45",
+      "name": "Has Optimized SQL?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        46112,
+        13808
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.20.0.234:4888/api/rust/v1/sr-sandboxes/sql-executions",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Accept",
+              "value": "application/json"
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "Authorization",
+              "value": "Bearer fuxi_backend_query_all_20260518"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ { \"taskName\": \"sr-country-query\", \"country\": (((($json.evidence || {}).queryContext || {}).country) || \"cn\"), \"purpose\": \"agent\", \"accessMode\": \"local\", \"sqlMode\": \"query\", \"sql\": \"EXPLAIN \" + String((((($json.aiResult || {}).optimizedSql) || \"\"))).replace(/^```sql\\s*/i, \"\").replace(/^```\\s*/i, \"\").replace(/\\s*```$/i, \"\").trim(), \"page\": 1, \"pageSize\": 100, \"timeoutSec\": 60 } }}",
+        "options": {}
+      },
+      "id": "d7926a1b-921c-4730-8a20-e31de3dcea9d",
+      "name": "Run Optimized Explain",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        46352,
+        13680
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Parse AI Result').first().json || {};\nconst explain = $json || {};\nconst explainData = explain.data || {};\nconst explainResult = explain.result || {};\nconst explainErrorObj = explain.error || {};\nconst rows = explain.rows || explainData.rows || explainResult.rows || [];\nconst rowText = Array.isArray(rows) ? rows.map((r) => JSON.stringify(r)).join('\\n') : '';\nconst explainError = String(explain.message || explainErrorObj.message || explain.error || '').trim();\nconst denied = /access denied|privilege|permission/i.test(explainError);\nconst nonExplainablePass = /no viable statement for input '\\s*EXPLAIN\\s+(create|insert|alter|drop|truncate|grant|revoke|use|set|show|desc)/i.test(explainError);\nconst retryable = /syntax|parse|invalid sql|unexpected|mismatched input/i.test(explainError) && !nonExplainablePass;\nconst baseAiResult = base.aiResult || {};\nconst cleanedSql = String(baseAiResult.optimizedSql || '')\n  .replace(/^```sql\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .trim();\nconst ok = !explainError || denied || nonExplainablePass;\nconst nextRetryAllowed = Number(base.optimizationAttempt || 1) < Number(base.maxOptimizationAttempts || 3);\nconst needRetry2 = Boolean(retryable) && nextRetryAllowed;\nconst summary = rowText.slice(0, 1800) || (\n  explainError\n    ? (denied\n      ? '优化后 EXPLAIN 因权限不足未实际执行，但按通过处理：' + explainError\n      : nonExplainablePass\n        ? '优化后 SQL 属于 CREATE / INSERT / DDL 类语句，免 EXPLAIN 通过。'\n        : retryable\n          ? '优化后 EXPLAIN 命中语法/无效 SQL 错误，需要 AI 重试：' + explainError\n          : '优化后 EXPLAIN 未通过，但当前错误不再触发 AI 重试：' + explainError)\n    : '优化后 EXPLAIN 未返回结果。'\n);\nreturn [{ json: {\n  ...base,\n  aiResult: {\n    ...baseAiResult,\n    optimizedSql: cleanedSql\n  },\n  optimizedExplainChecked: true,\n  optimizedExplainOk: ok,\n  optimizedExplainPermissionDenied: denied,\n  optimizedExplainError: explainError || '',\n  optimizedExplainSummary: summary,\n  optimizedExplainRows: Array.isArray(rows) ? rows.slice(0, 20) : [],\n  optimizedExplainRaw: explain,\n  shouldRetryAi: Boolean(retryable),\n  needRetry2,\n  retryDecision: needRetry2 ? 'retry_2' : 'stop_after_attempt_1',\n  retryReason: retryable ? summary.slice(0, 400) : (base.retryReason || '')\n}}];\n"
+      },
+      "id": "ae773e2c-d749-413a-8cbb-a45175db80d6",
+      "name": "Merge Optimized Explain Result",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46592,
+        13680
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Parse AI Result').first().json || {};\nconst baseAiResult = base.aiResult || {};\nconst cleanedSql = String(baseAiResult.optimizedSql || '')\n  .replace(/^```sql\\s*/i, '')\n  .replace(/^```\\s*/i, '')\n  .replace(/\\s*```$/i, '')\n  .trim();\nconst skipReason = String(base.optimizedSqlExplainSkipReason || '').trim();\nconst nonExplainablePass = Boolean(cleanedSql && !base.optimizedSqlExplainEligible);\nconst summary = nonExplainablePass\n  ? '优化后 SQL 免 EXPLAIN 通过：' + (skipReason || 'CREATE / INSERT / DDL 类语句默认按成功处理。')\n  : (cleanedSql ? '未执行优化后 EXPLAIN。' : '未执行优化后 EXPLAIN：AI 没有返回 optimizedSql。');\nconst nextRetryAllowed = Number(base.optimizationAttempt || 1) < Number(base.maxOptimizationAttempts || 3);\nconst needRetry2 = !Boolean(cleanedSql) && nextRetryAllowed;\nreturn [{ json: {\n  ...base,\n  aiResult: {\n    ...baseAiResult,\n    optimizedSql: cleanedSql\n  },\n  optimizedExplainChecked: false,\n  optimizedExplainOk: Boolean(nonExplainablePass),\n  optimizedExplainPermissionDenied: false,\n  optimizedExplainError: '',\n  optimizedExplainSummary: summary,\n  optimizedExplainRows: [],\n  optimizedExplainRaw: null,\n  shouldRetryAi: !Boolean(cleanedSql),\n  needRetry2,\n  retryDecision: needRetry2 ? 'retry_2' : 'stop_after_attempt_1',\n  retryReason: !cleanedSql ? 'AI 未返回可校验的 optimizedSql。' : (base.retryReason || '')\n}}];\n"
+      },
+      "id": "6dc141f4-5949-477e-b455-73633f6a9925",
+      "name": "Skip Optimized Explain",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46352,
+        13920
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const safeFirst = (nodeName) => {\n  try {\n    const result = $(nodeName).first();\n    return result && result.json ? result.json : null;\n  } catch (error) {\n    return null;\n  }\n};\nconst upstreamBase = safeFirst('Merge Optimized Explain Result')\n  || safeFirst('Skip Optimized Explain')\n  || safeFirst('Parse AI Result')\n  || {};\nconst notifyConfig = {\n  fallbackEmail: 'jiangchuanchen@kn.group',\n  forceTestEmail: false,\n  sidecarAccountId: '7660ec09-ec27-4799-8b0e-c66a5322cbc5',\n  sidecarToken: '6fc22462-da46-42a3-b3ed-fb4ab8c1573f',\n  weiduSidecarAccountId: 'e623d433-087b-4740-8a9d-c68a1b682cdc',\n  weiduSidecarToken: 'dc978f86-8108-4135-8139-45e95010b450',\n  contactUpdateFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSemG0t7I77-t7z0_mKit8E6UIPtz6mXEfeyTGQKrjwL-h7ykQ/viewform?usp=publish-editor',\n  weiduGroupBotId: '9ce66a04-5acf-4f84-9fc0-c213760bae05',\n  weiduGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array',\n  operationGroupBotId: '66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302',\n  operationGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array',\n  mexicoAifoxGroupBotId: 'e10c0656-a479-4053-a9cd-18b4d1fe4c87',\n  mexicoAifoxGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array'\n};\nreturn [{ json: {\n  ...upstreamBase,\n  ...notifyConfig,\n  notifyConfig\n}}];\n"
+      },
+      "id": "70b3c887-67c8-4d3f-b5e2-7236880dbfa8",
+      "name": "Notify Config",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46880,
+        13904
+      ]
+    },
+    {
+      "parameters": {
+        "operation": "executeQuery",
+        "query": "select email, userId, user\nfrom employee\nwhere (\n  lower(coalesce(userId, '')) in (\n    lower('{{ $('Notify Config').first().json.user }}'),\n    lower('{{ $('Notify Config').first().json.executor }}'),\n    lower('{{ $('Webhook').item.json.body.user }}'),\n    lower('{{ $('Webhook').item.json.body.executor }}'),\n    lower('{{ String($('Notify Config').first().json.user || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Notify Config').first().json.executor || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Webhook').item.json.body.user || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Webhook').item.json.body.executor || '').replace(/^u_/i, '') }}')\n  )\n  or lower(coalesce(user, '')) in (\n    lower('{{ $('Notify Config').first().json.user }}'),\n    lower('{{ $('Notify Config').first().json.executor }}'),\n    lower('{{ $('Webhook').item.json.body.user }}'),\n    lower('{{ $('Webhook').item.json.body.executor }}'),\n    lower(concat('u_', '{{ String($('Notify Config').first().json.user || '').replace(/^u_/i, '') }}')),\n    lower(concat('u_', '{{ String($('Notify Config').first().json.executor || '').replace(/^u_/i, '') }}')),\n    lower(concat('u_', '{{ String($('Webhook').item.json.body.user || '').replace(/^u_/i, '') }}')),\n    lower(concat('u_', '{{ String($('Webhook').item.json.body.executor || '').replace(/^u_/i, '') }}'))\n  )\n  or lower(substring_index(coalesce(email, ''), '@', 1)) in (\n    lower('{{ String($('Notify Config').first().json.user || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Notify Config').first().json.executor || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Webhook').item.json.body.user || '').replace(/^u_/i, '') }}'),\n    lower('{{ String($('Webhook').item.json.body.executor || '').replace(/^u_/i, '') }}')\n  )\n)\nand email is not null\nand trim(email) <> ''",
+        "options": {}
+      },
+      "id": "8c89739f-8508-4df0-bdb5-7524512c88f2",
+      "name": "Get User Info",
+      "type": "n8n-nodes-base.mySql",
+      "typeVersion": 2.5,
+      "position": [
+        47440,
+        13712
+      ],
+      "alwaysOutputData": true,
+      "credentials": {
+        "mySql": {
+          "id": "9GlhDNA19PjiP63m",
+          "name": "sradmin_用户库"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const safeFirst = (nodeName) => {\n  try {\n    const result = $(nodeName).first();\n    return result && result.json ? result.json : null;\n  } catch (error) {\n    return null;\n  }\n};\nconst safeAll = (nodeName) => {\n  try {\n    return $(nodeName).all().map((item) => item.json || {}).filter((item) => item && Object.keys(item).length > 0);\n  } catch (error) {\n    return [];\n  }\n};\nconst normalizeId = (value) => String(value || '').trim().toLowerCase().replace(/^u_/i, '');\nconst normalizeAccount = (value) => String(value || '').trim().replace(/^u_/i, '').toLowerCase();\nconst normalizeEmail = (value) => String(value || '').trim().toLowerCase();\nconst uniq = (values) => Array.from(new Set(values.map((value) => String(value || '').trim()).filter(Boolean)));\nconst notifyNode = safeFirst('Notify Config') || {};\nconst webhookNode = safeFirst('Webhook') || {};\nconst webhookBody = webhookNode.body || {};\nconst upstreamBase = safeFirst('Merge Optimized Explain Result')\n  || safeFirst('Skip Optimized Explain')\n  || safeFirst('Parse AI Result')\n  || {};\nconst base = { ...upstreamBase, ...notifyNode };\nconst config = base.notifyConfig || notifyNode || {};\nconst targetUser = normalizeId(base.user);\nconst targetExecutor = normalizeId(base.executor);\nconst webhookUser = normalizeId(webhookBody.user);\nconst webhookExecutor = normalizeId(webhookBody.executor);\nconst targetIds = Array.from(new Set([targetUser, targetExecutor, webhookUser, webhookExecutor].filter(Boolean)));\nconst inputItems = $input.all().map((item) => item.json || {}).filter((row) => row && Object.keys(row).length > 0);\nconst userInfoRows = safeAll('Get User Info');\nconst rows = (userInfoRows.length ? userInfoRows : inputItems)\n  .filter((row) => row && Object.keys(row).length > 0 && (row.email || row.user || row.userId));\nconst rowIdentityValues = (row) => uniq([\n  row.userId,\n  row.user,\n  String(row.user || '').replace(/^u_/i, ''),\n  String(row.email || '').split('@')[0],\n].map(normalizeId));\nconst matchedRows = rows.filter((row) => {\n  const rowEmail = String(row.email || '').trim();\n  if (!rowEmail || !/@/.test(rowEmail)) return false;\n  return rowIdentityValues(row).some((value) => targetIds.includes(value));\n});\nconst fallbackEmail = config.fallbackEmail || 'jiangchuanchen@kn.group';\nconst forceTestEmail = !!config.forceTestEmail;\nconst userEmailOverrides = {\"alyssali\":\"Alyssali@weidu.co\"};\nconst pickMatch = (...ids) => {\n  for (const id of ids) {\n    if (!id) continue;\n    const matched = matchedRows.find((row) => rowIdentityValues(row).includes(id));\n    if (matched && matched.email) return matched;\n  }\n  return null;\n};\nlet primaryEmail = fallbackEmail;\nif (!forceTestEmail) {\n  const matched = pickMatch(targetUser, webhookUser, targetExecutor, webhookExecutor);\n  const overrideEmail = userEmailOverrides[targetUser] || userEmailOverrides[webhookUser] || userEmailOverrides[targetExecutor] || userEmailOverrides[webhookExecutor] || '';\n  primaryEmail = String(overrideEmail || (matched && matched.email) || fallbackEmail).trim() || fallbackEmail;\n}\nconst directParsedContactNode = inputItems.find((item) => item && item.accountNotifyMap) || {};\nconst parseNodeLookup = safeFirst('Parse Contact CSV') || {};\nconst parsedContactNode = directParsedContactNode.accountNotifyMap ? directParsedContactNode : parseNodeLookup;\nconst accountNotifyMap = parsedContactNode.accountNotifyMap && typeof parsedContactNode.accountNotifyMap === 'object'\n  ? JSON.parse(JSON.stringify(parsedContactNode.accountNotifyMap))\n  : {};\nconst firstField = (row, names) => {\n  for (const name of names) {\n    if (row && row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== '') return row[name];\n  }\n  return '';\n};\nconst parseCsvRows = (text) => {\n  const rows = [];\n  let row = [];\n  let field = '';\n  let inQuotes = false;\n  const input = String(text || '').replace(/^\\uFEFF/, '');\n  for (let i = 0; i < input.length; i += 1) {\n    const ch = input[i];\n    if (ch === '\"') {\n      if (inQuotes && input[i + 1] === '\"') {\n        field += '\"';\n        i += 1;\n      } else {\n        inQuotes = !inQuotes;\n      }\n    } else if (ch === ',' && !inQuotes) {\n      row.push(field);\n      field = '';\n    } else if ((ch === '\\n' || ch === '\\r') && !inQuotes) {\n      if (ch === '\\r' && input[i + 1] === '\\n') i += 1;\n      row.push(field);\n      if (row.some((cell) => String(cell).trim())) rows.push(row);\n      row = [];\n      field = '';\n    } else {\n      field += ch;\n    }\n  }\n  row.push(field);\n  if (row.some((cell) => String(cell).trim())) rows.push(row);\n  if (rows.length < 2) return [];\n  const headers = rows[0].map((cell) => String(cell || '').trim());\n  return rows.slice(1).map((cells) => Object.fromEntries(headers.map((header, index) => [header, cells[index] || ''])));\n};\nconst normalizeOverrideRows = (rawItems) => {\n  const normalized = [];\n  for (const item of rawItems) {\n    if (Array.isArray(item)) {\n      normalized.push(...normalizeOverrideRows(item));\n      continue;\n    }\n    const body = item.stdout || item.data || item.body || item.response || item;\n    if (typeof body === 'string') {\n      const text = body.trim();\n      if (!text) continue;\n      try {\n        const parsed = JSON.parse(text);\n        normalized.push(...normalizeOverrideRows(Array.isArray(parsed) ? parsed : [parsed]));\n      } catch (error) {\n        normalized.push(...parseCsvRows(text));\n      }\n      continue;\n    }\n    if (body && typeof body === 'object') {\n      if (Array.isArray(body)) normalized.push(...normalizeOverrideRows(body));\n      else if (Array.isArray(body.rows)) normalized.push(...normalizeOverrideRows(body.rows));\n      else if (Array.isArray(body.data)) normalized.push(...normalizeOverrideRows(body.data));\n      else normalized.push(body);\n    }\n  }\n  return normalized;\n};\nconst canonicalSheet = (value) => {\n  const text = String(value || '').trim().toLowerCase();\n  if (!text) return '';\n  if (/中国|china|starrocks_cn|\\bcn\\b/.test(text)) return 'cn';\n  if (/印尼|印度尼西亚|indonesia|starrocks_ine|starrocks_id|\\bine\\b|\\bid\\b/.test(text)) return 'ine';\n  if (/泰国|thailand|starrocks_th|\\bth\\b/.test(text)) return 'th';\n  if (/菲律宾|philippines|starrocks_ph|\\bph\\b/.test(text)) return 'ph';\n  if (/巴基斯坦|pakistan|starrocks_pak|starrocks_pk|\\bpak\\b|\\bpk\\b/.test(text)) return 'pk';\n  if (/墨西哥|mexico|starrocks_mex|starrocks_mx|\\bmex\\b|\\bmx\\b/.test(text)) return 'mx';\n  return text;\n};\nconst splitPeople = (value) => String(value || '')\n  .split(/[、,，;；/\\\\|\\n\\r\\t]+/)\n  .map((item) => item.trim())\n  .filter(Boolean);\nconst overrideCountryOwners = {\n  cn: { contacts: ['张恒阳', '宗美晨'], emails: ['owenzhang@kn.group', 'rockyzong@kn.group'] },\n  ine: { contacts: ['何柳琴', '翟爽'], emails: ['gretchenhe@kn.group', 'riverzhai@kn.group'] },\n  th: { contacts: ['黄启龙', '朱会明'], emails: ['qilonghuang@kn.group', 'brightonzhu@kn.group'] },\n  ph: { contacts: ['汤伟', '陈江川'], emails: ['simontang@kn.group', 'jiangchuanchen@kn.group'] },\n  pk: { contacts: ['余红叶', '穆晋杰'], emails: ['adamyu@kn.group', 'moonmu@kn.group'] },\n  mx: { contacts: ['吴奎', '邓保保'], emails: ['kuiwu@kn.group', 'enzodeng@kn.group'] },\n};\nconst applyContactOverrides = (rows) => {\n  const applied = [];\n  for (const row of rows) {\n    const sheet = canonicalSheet(firstField(row, ['国家', 'country', 'sheet', '集群', 'cluster']));\n    const account = normalizeAccount(firstField(row, ['账号', 'account', 'user', '用户']));\n    const department = String(firstField(row, ['部门', '数据开发组', 'department', 'dept']) || '').trim();\n    const note = String(firstField(row, ['备注', '备注(近2月访问)', 'note', 'remark', 'remarks']) || '').trim();\n    let contacts = splitPeople(firstField(row, ['修改后联系人', '联系人', 'contacts', 'contact', 'name', 'names']));\n    let emails = splitPeople(firstField(row, ['修改后邮箱', '邮箱', 'emails', 'email']));\n    const action = String(firstField(row, ['操作', 'action', '是否删除', 'delete']) || '').trim().toLowerCase();\n    if (!sheet || !account) continue;\n    if (action === 'delete' || action === '删除' || action === 'true') {\n      if (accountNotifyMap[sheet]) delete accountNotifyMap[sheet][account];\n      applied.push({ sheet, account, action: 'delete' });\n      continue;\n    }\n    let defaultedToCountryOwner = false;\n    if (!contacts.length && overrideCountryOwners[sheet]) {\n      contacts = overrideCountryOwners[sheet].contacts;\n      emails = overrideCountryOwners[sheet].emails;\n      defaultedToCountryOwner = true;\n    }\n    if (/未填写.*联系人|兜底.*国家负责人|国家负责人.*确认/.test(note)) {\n      defaultedToCountryOwner = true;\n    }\n    if (!emails.length) continue;\n    accountNotifyMap[sheet] = accountNotifyMap[sheet] || {};\n    accountNotifyMap[sheet][account] = { department, contacts, emails, defaultedToCountryOwner, note };\n    applied.push({ sheet, account, department, contacts, emails, action: 'upsert', defaultedToCountryOwner, note });\n  }\n  return applied;\n};\nconst parsedContactRows = Array.isArray(parsedContactNode.contactRows) ? parsedContactNode.contactRows : [];\nconst fetchContactRows = normalizeOverrideRows(safeAll('Fetch Contact CSV'));\nconst contactOverrideRawRows = parsedContactRows.length ? parsedContactRows : fetchContactRows;\nconst contactOverrideApplied = Object.keys(accountNotifyMap).length\n  ? []\n  : applyContactOverrides(contactOverrideRawRows);\nconst queryContext = (base.evidence || {}).queryContext || {};\nconst alert = (base.evidence || {}).alert || {};\nconst rawCluster = String(base.cluster || queryContext.cluster || webhookBody.cluster || '').toLowerCase();\nconst rawCountry = String(queryContext.country || base.country || webhookBody.country || '').toLowerCase();\nconst sheetAliases = {\n  cn: ['cn'], china: ['cn'], starrocks_cn: ['cn'],\n  ine: ['ine'], id: ['ine'], indonesia: ['ine'], starrocks_ine: ['ine'], starrocks_id: ['ine'],\n  th: ['th'], thailand: ['th'], starrocks_th: ['th'],\n  ph: ['ph'], philippines: ['ph'], starrocks_ph: ['ph'],\n  pk: ['pk'], pak: ['pk'], pakistan: ['pk'], starrocks_pk: ['pk'], starrocks_pak: ['pk'],\n  mx: ['mx'], mex: ['mx'], mexico: ['mx'], starrocks_mx: ['mx'], starrocks_mex: ['mx']\n};\nconst inferSheets = (...keys) => {\n  const sheets = [];\n  for (const key of keys) {\n    const normalized = String(key || '').toLowerCase().trim();\n    if (!normalized) continue;\n    for (const [alias, mappedSheets] of Object.entries(sheetAliases)) {\n      if (normalized === alias || normalized.includes(alias)) {\n        for (const sheet of mappedSheets) sheets.push(sheet);\n      }\n    }\n  }\n  return uniq(sheets);\n};\nconst candidateSheets = inferSheets(rawCluster, rawCountry);\nconst accountCandidates = uniq([\n  base.account,\n  base.dbUser,\n  base.user,\n  base.executor,\n  webhookBody.account,\n  webhookBody.dbUser,\n  webhookBody.user,\n  webhookBody.executor,\n  alert.account,\n  alert.user,\n  alert.executor,\n  queryContext.account,\n  queryContext.user,\n  queryContext.executor,\n].map(normalizeAccount));\nconst findAccountOwners = () => {\n  const searchSheets = candidateSheets.length ? candidateSheets : Object.keys(accountNotifyMap);\n  const owners = [];\n  for (const sheet of searchSheets) {\n    const sheetMap = accountNotifyMap[sheet] || {};\n    for (const account of accountCandidates) {\n      const entry = sheetMap[account];\n      if (!entry) continue;\n      owners.push({ sheet, account, ...entry });\n    }\n  }\n  return owners;\n};\nconst matchedAccountOwners = findAccountOwners();\nconst mappedEmails = uniq(matchedAccountOwners.flatMap((entry) => entry.emails || []));\nconst mappedContacts = uniq(matchedAccountOwners.flatMap((entry) => entry.contacts || []));\nconst mappedDepartments = uniq(matchedAccountOwners.map((entry) => entry.department));\nconst mappedAccounts = uniq(matchedAccountOwners.map((entry) => entry.account));\nconst countryOwnerFallbackAccounts = matchedAccountOwners\n  .filter((entry) => entry.defaultedToCountryOwner)\n  .map((entry) => entry.account);\nconst countryOwnerFallbackNotice = countryOwnerFallbackAccounts.length\n  ? '该账号联系人由国家负责人兜底；请国家负责人自行确认实际负责人并通过联系人调整表单补充。'\n  : '';\n// Routing rule:\n// 1. Exact CSV account mapping wins.\n// 2. Department/system accounts must be configured in the CSV for the current country.\n//    If they are not mapped, notify the configured fallback owner instead of country owners.\n// 3. Personal accounts use their user email when it is found; only missing personal emails\n//    fall back to country owners.\nconst isSystemAccountId = (account) => {\n  const value = normalizeAccount(account);\n  if (!value) return false;\n  if (/^e[_-]/.test(value)) return true;\n  if (/^(backup_user|starrocks_monitor|system|admin|root)$/.test(value)) return true;\n  if (/(_user|_monitor|_service|_scheduler|_etl|_sync)$/.test(value)) return true;\n  return false;\n};\nconst csvKnownAccountSet = new Set();\nfor (const sheetMap of Object.values(accountNotifyMap)) {\n  if (!sheetMap || typeof sheetMap !== 'object') continue;\n  for (const account of Object.keys(sheetMap)) csvKnownAccountSet.add(normalizeAccount(account));\n}\nconst isKnownDepartmentAccount = accountCandidates.some((account) => csvKnownAccountSet.has(normalizeAccount(account)));\nconst isDepartmentOrSystemAccount = accountCandidates.some(isSystemAccountId) || isKnownDepartmentAccount;\nconst countryFallbackEmails = uniq(candidateSheets.flatMap((sheet) => ((overrideCountryOwners[sheet] || {}).emails || [])));\nconst hasUserInfoEmail = Boolean(primaryEmail && primaryEmail !== fallbackEmail);\nlet finalEmails = [fallbackEmail];\nlet notifyTargetSource = 'executor_or_fallback';\nlet countryOwnerFallbackUsed = false;\nlet departmentStrictFallbackUsed = false;\nif (forceTestEmail) {\n  finalEmails = [fallbackEmail];\n  notifyTargetSource = 'force_test_email';\n} else if (mappedEmails.length) {\n  finalEmails = mappedEmails;\n  notifyTargetSource = 'department_account_mapping';\n} else if (isDepartmentOrSystemAccount) {\n  finalEmails = [fallbackEmail];\n  notifyTargetSource = 'department_account_unmapped_fallback';\n  departmentStrictFallbackUsed = true;\n} else if (hasUserInfoEmail) {\n  finalEmails = [primaryEmail];\n  notifyTargetSource = 'user_info_email';\n} else if (countryFallbackEmails.length) {\n  finalEmails = countryFallbackEmails;\n  notifyTargetSource = 'personal_account_country_owner_fallback';\n  countryOwnerFallbackUsed = true;\n}\nconst genericCountryOwnerFallbackDisabled = true;\nconst genericCountryOwnerFallbackPrevented = isDepartmentOrSystemAccount && !mappedEmails.length && candidateSheets.length > 0;\nconst ownerMap = {\n  starrocks_cn: [{ name: '张恒阳', email: 'owenzhang@kn.group' }, { name: '宗美晨', email: 'rockyzong@kn.group' }],\n  cn: [{ name: '张恒阳', email: 'owenzhang@kn.group' }, { name: '宗美晨', email: 'rockyzong@kn.group' }],\n  starrocks_ine: [{ name: '何柳琴', email: 'gretchenhe@kn.group' }, { name: '翟爽', email: 'riverzhai@kn.group' }],\n  ine: [{ name: '何柳琴', email: 'gretchenhe@kn.group' }, { name: '翟爽', email: 'riverzhai@kn.group' }],\n  id: [{ name: '何柳琴', email: 'gretchenhe@kn.group' }, { name: '翟爽', email: 'riverzhai@kn.group' }],\n  starrocks_mex: [{ name: '吴奎', email: 'kuiwu@kn.group' }, { name: '邓保保', email: 'enzodeng@kn.group' }],\n  mex: [{ name: '吴奎', email: 'kuiwu@kn.group' }, { name: '邓保保', email: 'enzodeng@kn.group' }],\n  mx: [{ name: '吴奎', email: 'kuiwu@kn.group' }, { name: '邓保保', email: 'enzodeng@kn.group' }],\n  starrocks_ph: [{ name: '汤伟', email: 'simontang@kn.group' }, { name: '陈江川', email: 'jiangchuanchen@kn.group' }],\n  ph: [{ name: '汤伟', email: 'simontang@kn.group' }, { name: '陈江川', email: 'jiangchuanchen@kn.group' }],\n  starrocks_th: [{ name: '黄启龙', email: 'qilonghuang@kn.group' }, { name: '朱会明', email: 'brightonzhu@kn.group' }],\n  th: [{ name: '黄启龙', email: 'qilonghuang@kn.group' }, { name: '朱会明', email: 'brightonzhu@kn.group' }],\n  starrocks_pak: [{ name: '余红叶', email: 'adamyu@kn.group' }, { name: '穆晋杰', email: 'moonmu@kn.group' }],\n  pak: [{ name: '余红叶', email: 'adamyu@kn.group' }, { name: '穆晋杰', email: 'moonmu@kn.group' }],\n  pk: [{ name: '余红叶', email: 'adamyu@kn.group' }, { name: '穆晋杰', email: 'moonmu@kn.group' }]\n};\nconst clusterKey = String(base.cluster || queryContext.cluster || '').toLowerCase();\nconst countryKey = String(queryContext.country || base.country || '').toLowerCase();\nconst owners = ownerMap[clusterKey] || ownerMap[countryKey] || [];\nconst countryOwnerNames = owners.map((item) => item.name).filter(Boolean);\nconst countryOwnerNamesText = countryOwnerNames.length ? countryOwnerNames.join('、') : '未配置';\nconst departmentAccountContactText = mappedContacts.length\n  ? mappedContacts.map((name, index) => {\n      const email = mappedEmails[index] || '';\n      return email ? name + '<' + email + '>' : name;\n    }).join('、')\n  : '';\nreturn [{ json: {\n  ...base,\n  notifyEmail: finalEmails[0] || fallbackEmail,\n  notifyEmails: finalEmails,\n  notifyTargetSource,\n  userInfo: matchedRows,\n  notifyConfig: config,\n  departmentAccountNotifyMatched: Boolean(mappedEmails.length),\n  departmentAccountNotifySheets: candidateSheets,\n  departmentAccountNotifyAccounts: mappedAccounts,\n  departmentAccountNotifyDepartments: mappedDepartments,\n  departmentAccountNotifyContacts: mappedContacts,\n  departmentAccountNotifyEmails: mappedEmails,\n  departmentAccountNotifyMatchedDetails: matchedAccountOwners,\n  departmentAccountNotifyCandidateSheets: candidateSheets,\n  accountNotifyMapCountryKeys: Object.keys(accountNotifyMap),\n  contactCsvSource: directParsedContactNode.accountNotifyMap ? 'direct_input' : 'node_lookup',\n  userInfoRowsCount: rows.length,\n  departmentAccountContactText,\n  countryOwnerFallbackAccounts,\n  countryOwnerFallbackNotice,\n  contactOverrideApplied,\n  contactOverrideAppliedCount: contactOverrideApplied.length,\n  contactCsvParseOk: Boolean(parsedContactNode.contactCsvParseOk),\n  contactCsvRowCount: Number(parsedContactNode.contactCsvRowCount || contactOverrideRawRows.length || 0),\n  contactCsvStdoutLength: Number(parsedContactNode.contactCsvStdoutLength || 0),\n  contactCsvInputItemCount: Number(parsedContactNode.contactCsvInputItemCount || 0),\n  contactCsvPickedHasHeader: Boolean(parsedContactNode.contactCsvPickedHasHeader),\n  contactCsvPickSource: String(parsedContactNode.contactCsvPickSource || ''),\n  contactCsvCollectedStringCount: Number(parsedContactNode.contactCsvCollectedStringCount || 0),\n  contactCsvPreview: String(parsedContactNode.contactCsvPreview || '').slice(0, 200),\n  contactCsvSource: directParsedContactNode.accountNotifyMap ? 'direct_input' : (parseNodeLookup.accountNotifyMap ? 'parse_node_lookup' : (fetchContactRows.length ? 'fetch_stdout_fallback' : 'missing')),\n  accountNotifyMapCountryCount: Object.keys(accountNotifyMap).length,\n  accountCandidates,\n  rawCluster,\n  rawCountry,\n  isDepartmentOrSystemAccount,\n  isKnownDepartmentAccount,\n  departmentStrictFallbackUsed,\n  countryOwnerFallbackUsed,\n  countryFallbackEmails,\n  genericCountryOwnerFallbackDisabled,\n  genericCountryOwnerFallbackPrevented,\n  hasUserInfoEmail,\n  countryOwnerEmails: [],\n  countryOwnerNames,\n  countryOwnerNamesText,\n  tvMentionEmails: finalEmails,\n  tvContactText: countryOwnerNamesText\n}}];"
+      },
+      "id": "aa1d7a5a-7dd1-4ae6-a514-1c7dad207c7f",
+      "name": "Merge Notify Target",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        47536,
+        13952
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const safeFirst = (nodeName) => {\n  try {\n    const result = $(nodeName).first();\n    return result && result.json ? result.json : null;\n  } catch (error) {\n    return null;\n  }\n};\nconst mergeBase = safeFirst('Merge Notify Target') || {};\nconst clip = (value, limit) => {\n  const text = String(value || '').replace(/\\s+/g, ' ').trim();\n  return text.length > limit ? text.slice(0, limit) + '...(truncated)' : text;\n};\nconst hasStablePrompt = (obj) => Boolean(String((obj && (obj.originalPrompt || obj.prompt)) || '').trim());\nconst hasStableAiPayload = (obj) => {\n  if (!obj || typeof obj !== 'object') return false;\n  const raw = String(obj.aiRawOutput || '').trim();\n  const aiResult = obj.aiResult && typeof obj.aiResult === 'object' ? obj.aiResult : null;\n  return Boolean(raw || (aiResult && Object.keys(aiResult).length > 0));\n};\nconst hasModelAnswer = (obj) => {\n  if (!obj || typeof obj !== 'object') return false;\n  const aiResult = obj.aiResult && typeof obj.aiResult === 'object' ? obj.aiResult : null;\n  if (!aiResult || !Object.keys(aiResult).length) return false;\n  if (obj.aiFallbackUsed) return false;\n  const conclusion = String(aiResult.oneLineConclusion || '').trim();\n  const summary = String(aiResult.summary || '').trim();\n  return Boolean(conclusion || summary);\n};\nconst toInt = (value) => {\n  if (value === null || value === undefined || value === '') return undefined;\n  const n = Number(value);\n  return Number.isFinite(n) ? Math.trunc(n) : undefined;\n};\nconst normalizeUsage = (raw) => {\n  if (!raw || typeof raw !== 'object') return null;\n  const prompt = toInt(raw.promptTokens !== undefined ? raw.promptTokens : (raw.prompt_tokens !== undefined ? raw.prompt_tokens : (raw.inputTokens !== undefined ? raw.inputTokens : raw.input_tokens)));\n  const completion = toInt(raw.completionTokens !== undefined ? raw.completionTokens : (raw.completion_tokens !== undefined ? raw.completion_tokens : (raw.outputTokens !== undefined ? raw.outputTokens : raw.output_tokens)));\n  const total = toInt(raw.totalTokens !== undefined ? raw.totalTokens : raw.total_tokens);\n  if (prompt === undefined && completion === undefined && total === undefined) return null;\n  return {\n    prompt_tokens: prompt === undefined ? 0 : prompt,\n    completion_tokens: completion === undefined ? 0 : completion,\n    total_tokens: total === undefined ? ((prompt === undefined ? 0 : prompt) + (completion === undefined ? 0 : completion)) : total\n  };\n};\nconst firstDefined = (...values) => {\n  for (const value of values) {\n    if (value !== undefined && value !== null && value !== '') return value;\n  }\n  return undefined;\n};\nconst extractRawOutput = (parse, api) => {\n  const candidate = firstDefined(\n    parse && parse.aiRawOutput,\n    api && api.aiRawOutput,\n    api && api.response && api.response.choices && api.response.choices[0] && api.response.choices[0].message && api.response.choices[0].message.content,\n    api && api.data && api.data.choices && api.data.choices[0] && api.data.choices[0].message && api.data.choices[0].message.content,\n    api && api.body && api.body.choices && api.body.choices[0] && api.body.choices[0].message && api.body.choices[0].message.content,\n    api && api.choices && api.choices[0] && api.choices[0].message && api.choices[0].message.content\n  );\n  if (candidate === undefined || candidate === null) return '';\n  if (typeof candidate === 'string') return candidate.trim();\n  try {\n    return JSON.stringify(candidate);\n  } catch (error) {\n    return String(candidate);\n  }\n};\nconst extractUsage = (parse, api) => {\n  const candidates = [\n    parse && parse.tokenUsage,\n    parse && parse.modelTokenUsageRaw,\n    parse && parse.aiApiResponse,\n    api && api.tokenUsage,\n    api && api.usage,\n    api && api.response,\n    api && api.data,\n    api && api.body,\n    api\n  ].filter(Boolean);\n  for (const candidate of candidates) {\n    const normalized = normalizeUsage(candidate)\n      || normalizeUsage(candidate && candidate.usage)\n      || normalizeUsage(candidate && candidate.tokenUsage)\n      || normalizeUsage(candidate && candidate.response && candidate.response.usage)\n      || normalizeUsage(candidate && candidate.response && candidate.response.tokenUsage)\n      || normalizeUsage(candidate && candidate.data && candidate.data.usage)\n      || normalizeUsage(candidate && candidate.data && candidate.data.tokenUsage)\n      || normalizeUsage(candidate && candidate.body && candidate.body.usage)\n      || normalizeUsage(candidate && candidate.body && candidate.body.tokenUsage);\n    if (normalized) return normalized;\n  }\n  return {};\n};\nconst extractModelTokenUsageRaw = (parse, api) => firstDefined(\n  parse && parse.modelTokenUsageRaw,\n  parse && parse.aiApiResponse,\n  api && api.tokenUsage,\n  api && api.usage,\n  api && api.response,\n  api && api.data,\n  api && api.body,\n  api\n);\nconst extractModelName = (parse, api) => String(firstDefined(\n  parse && parse.model,\n  api && api.model,\n  api && api.response && api.response.model,\n  api && api.data && api.data.model,\n  api && api.body && api.body.model,\n  'qwen3.7-plus'\n) || 'qwen3.7-plus').trim();\nconst parse = safeFirst('Parse AI Result') || {};\nconst api = safeFirst('Call Qwen Chat API') || {};\nconst prompt = String(firstDefined(parse.originalPrompt, parse.prompt, api.originalPrompt, api.prompt, mergeBase.originalPrompt, mergeBase.prompt) || '').trim();\nconst aiResult = parse.aiResult && typeof parse.aiResult === 'object' && Object.keys(parse.aiResult).length > 0 ? parse.aiResult : null;\nconst rawOutput = extractRawOutput(parse, api);\nconst usage = extractUsage(parse, api);\nconst hasOutput = Boolean(prompt && (rawOutput || aiResult));\nconst attempt = {\n  key: 'attempt1',\n  label: '第1次',\n  parseNode: 'Parse AI Result',\n  apiNode: 'Call Qwen Chat API',\n  parse,\n  api,\n  prompt,\n  aiResult,\n  rawOutput,\n  usage,\n  model: extractModelName(parse, api),\n  modelTokenUsageRaw: extractModelTokenUsageRaw(parse, api),\n  hasOutput,\n  hasStablePrompt: hasStablePrompt(parse) || Boolean(prompt),\n  hasStableAiPayload: hasStableAiPayload(parse) || Boolean(rawOutput || aiResult),\n  hasModelAnswer: hasModelAnswer(parse)\n};\nconst selectedAttempt = attempt;\nconst parseBase = selectedAttempt.parse || {};\nconst base = { ...parseBase, ...mergeBase };\nconst stablePrompt = selectedAttempt.prompt || String(mergeBase.originalPrompt || mergeBase.prompt || '').trim();\nconst stableAiResult = selectedAttempt.aiResult\n  ? selectedAttempt.aiResult\n  : ((mergeBase.aiResult && typeof mergeBase.aiResult === 'object' && Object.keys(mergeBase.aiResult).length > 0) ? mergeBase.aiResult : null);\nconst stableRawOutput = selectedAttempt.rawOutput || '';\nconst queryId = base.queryId || 'unknown_query';\nconst cluster = base.cluster || 'unknown_cluster';\nconst optimizedExplainMeta = {\n  optimized_explain_checked: !!base.optimizedExplainChecked,\n  optimized_explain_ok: !!base.optimizedExplainOk,\n  optimized_explain_permission_denied: !!base.optimizedExplainPermissionDenied,\n  optimized_explain_error: base.optimizedExplainError || '',\n  optimized_explain_summary: base.optimizedExplainSummary || '',\n  optimized_explain_rows: base.optimizedExplainRows || []\n};\nconst makeId = () => Math.random().toString(16).slice(2) + Math.random().toString(16).slice(2);\nconst now = new Date().toISOString();\nconst traceId = makeId();\nconst traceName = '异常告警修复助手';\nconst generationName = '异常告警修复助手';\nconst tracePromptMessages = [\n  { role: 'system', content: '严格根据输入提示完成分析，并且只输出 JSON。不要输出 Markdown，不要输出额外解释。' },\n  { role: 'user', content: stablePrompt }\n];\nconst shouldWrite = Boolean(selectedAttempt.hasStablePrompt && selectedAttempt.hasStableAiPayload);\nconst attemptSummaries = [{\n  key: attempt.key,\n  label: attempt.label,\n  parseNode: attempt.parseNode,\n  apiNode: attempt.apiNode,\n  hasPrompt: Boolean(attempt.prompt),\n  hasAiResult: Boolean(attempt.aiResult && Object.keys(attempt.aiResult).length > 0),\n  hasRawOutput: Boolean(attempt.rawOutput),\n  selected: true,\n  usage: attempt.usage || {},\n  writable: shouldWrite\n}];\nlet batch = null;\nlet generationId = '';\nif (shouldWrite) {\n  generationId = makeId();\n  const generationBody = {\n    id: generationId,\n    traceId,\n    name: generationName,\n    model: attempt.model,\n    input: tracePromptMessages,\n    output: attempt.rawOutput || JSON.stringify(attempt.aiResult || {}),\n    metadata: {\n      parsed_output: attempt.aiResult || {},\n      queryId,\n      cluster,\n      evidence: base.evidence || {},\n      userInfo: base.userInfo || [],\n      extracted_usage: attempt.usage || {},\n      token_usage_source: Object.keys(attempt.usage || {}).length ? 'parse_or_api_response' : 'missing',\n      attempt_key: attempt.key,\n      attempt_label: attempt.label,\n      selected: true,\n      selected_parse_source: clip((((attempt.parse.aiModelLookupMeta || {}).source) || 'unknown'), 120),\n      model_token_usage: attempt.modelTokenUsageRaw || null,\n      ...optimizedExplainMeta\n    }\n  };\n  if (Object.keys(attempt.usage || {}).length) {\n    generationBody.promptTokens = attempt.usage.prompt_tokens || 0;\n    generationBody.completionTokens = attempt.usage.completion_tokens || 0;\n    generationBody.totalTokens = attempt.usage.total_tokens || 0;\n    generationBody.usageDetails = {\n      input: attempt.usage.prompt_tokens || 0,\n      output: attempt.usage.completion_tokens || 0,\n      total: attempt.usage.total_tokens || 0,\n      unit: 'TOKENS'\n    };\n  }\n  batch = {\n    batch: [\n      {\n        id: makeId(),\n        timestamp: now,\n        type: 'trace-create',\n        body: {\n          id: traceId,\n          name: traceName,\n          sessionId: base.sessionId || '',\n          userId: base.user || '',\n          input: tracePromptMessages,\n          output: stableAiResult || {},\n          metadata: {\n            source: 'n8n_sql_optimizer_main',\n            queryId,\n            cluster,\n            executor: base.executor || '',\n            notifyEmail: base.notifyEmail || '',\n            notifyEmails: base.notifyEmails || [],\n            evidence: base.evidence || {},\n            selected_attempt: 'attempt1',\n            attempts: attemptSummaries,\n            ...optimizedExplainMeta\n          }\n        }\n      },\n      {\n        id: makeId(),\n        timestamp: now,\n        type: 'generation-create',\n        body: generationBody\n      }\n    ]\n  };\n}\nreturn [{ json: {\n  ...base,\n  prompt: stablePrompt,\n  aiRawOutput: stableRawOutput,\n  aiResult: stableAiResult || {},\n  langfuseTraceId: shouldWrite ? traceId : '',\n  langfuseGenerationId: shouldWrite ? generationId : '',\n  langfuseGenerationIds: shouldWrite && generationId ? [generationId] : [],\n  langfuseTraceName: traceName,\n  langfuseGenerationName: generationName,\n  langfuseUsage: attempt.usage || {},\n  langfuseAttempts: attemptSummaries,\n  langfuseAttemptCount: shouldWrite ? 1 : 0,\n  langfuseShouldWrite: shouldWrite,\n  langfuseSkipReason: shouldWrite ? '' : 'missing prompt or aiResult/aiRawOutput for attempt1',\n  langfuseBatch: batch,\n  langfuseHasPayload: shouldWrite\n}}];"
+      },
+      "id": "4907b479-4d47-48de-b1ac-e85ce58fd81e",
+      "name": "Build Langfuse Batch",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        47680,
+        14176
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.langfuseShouldWrite && $json.langfuseBatch && Array.isArray($json.langfuseBatch.batch) && $json.langfuseBatch.batch.length > 0) }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "173890b8-78b3-4462-aa49-f5db023bb8a7",
+      "name": "Should Write Langfuse?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        47776,
+        13888
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "http://172.20.0.234:3000/api/public/ingestion",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Authorization",
+              "value": "Basic cGstbGYtNTg2YzM5MWEtZjRmOS00MzU2LTkyZjUtOTcxMDA4MjhlNzJjOnNrLWxmLWZiZGU4MjIzLWRhOWUtNDg2OS05ZDg4LWJhOTE5ZTQ1ZjYwNA=="
+            },
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            },
+            {
+              "name": "User-Agent",
+              "value": "n8n-sql-optimizer/1.0"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.langfuseBatch }}",
+        "options": {}
+      },
+      "id": "c8fbbdee-b47f-4686-948a-51a9e995d506",
+      "name": "Write Langfuse",
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        47936,
+        13616
+      ],
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Build Langfuse Batch').first().json || {};\nconst notifyConfig = base.notifyConfig || {};\nconst evidence = (base.evidence || {}).alert || {};\nconst ai = base.aiResult || {};\nconst toText = (value) => value === null || value === undefined ? '' : String(value);\nconst sanitize = (value) => toText(value).replace(/undefined|null/g, '').trim();\nconst uniq = (values) => Array.from(new Set(values.map((value) => sanitize(value)).filter(Boolean)));\nconst cluster = sanitize(base.cluster);\nconst queryId = sanitize(base.queryId);\nconst notifyEmails = uniq(Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [base.notifyEmail || 'jiangchuanchen@kn.group']);\nconst contactText = sanitize(base.countryOwnerNamesText) || '未配置';\nconst contactUpdateFormUrl = sanitize(notifyConfig.contactUpdateFormUrl);\nconst countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);\nconst explainConclusion = !base.optimizedExplainChecked\n  ? '未执行优化后 EXPLAIN，请不要直接使用优化后的 SQL，建议结合上述优化建议人工验证。'\n  : (base.optimizedExplainOk\n    ? (base.optimizedExplainPermissionDenied ? '优化后 EXPLAIN 因权限不足未实际执行，请结合上述优化建议人工验证，确认无风险后再尝试使用优化后的 SQL。' : '优化后 EXPLAIN 校验通过，可以尝试使用优化后的 SQL。')\n    : '优化后 EXPLAIN 失败，请不要直接使用优化后的 SQL，建议结合上述优化建议人工验证。');\nconst buildSuggestionText = () => '异常查询：\\n'\n  + '- 集群：' + cluster + '\\n'\n  + '- 优化后sql的详细地址：http://sr-admin.kuainiujinke.com/share/sql/' + queryId + '\\n'\n  + '- CPU时间：' + sanitize(evidence.cpuTime) + '\\n'\n  + '- 内存使用：' + sanitize(evidence.memUsage) + '\\n'\n  + '- 执行时间：' + sanitize(evidence.execTime) + '\\n'\n  + '- 扫描行数：' + sanitize(evidence.scanRows) + '\\n'\n  + '- 用户：' + sanitize(base.user) + '\\n\\n'\n  + (base.dsTaskMatchOk ? 'SQL 所属 DS 任务：\\n' + (sanitize(base.dsCountryName) ? sanitize(base.dsCountryName) + ' DS 调度' : 'DS 调度') + '「' + sanitize(base.dsProject) + '」-「' + sanitize(base.dsWorkflow) + '」-「' + sanitize(base.dsTask) + '」任务\\n' + '- 负责人：' + sanitize(base.dsWorkflowOwner) + '\\n' + '- 创建人：' + sanitize(base.dsTaskCreator) + '\\n\\n' : '')\n  + '告警原因：\\n'\n  + '- ' + sanitize(evidence.violationDetail) + '\\n\\n'\n  + 'AI结论：\\n'\n  + sanitize(ai.oneLineConclusion) + '\\n\\n'\n  + '核心问题：\\n'\n  + sanitize(ai.coreIssue) + '\\n\\n'\n  + '优化建议：\\n'\n  + sanitize(ai.summary) + '\\n\\n'\n  + '优化风险点：\\n'\n  + sanitize(ai.risk) + '\\n\\n'\n  + '需人工验证：\\n'\n  + sanitize(ai.validationAdvice) + '\\n\\n'\n  + '优化后 EXPLAIN 校验：\\n'\n  + explainConclusion + '\\n\\n'\n  + (countryOwnerFallbackNotice ? '联系人兜底说明：\\n' + countryOwnerFallbackNotice + '\\n\\n' : '')\n  + '如果需要人工协助，请联系：\\n'\n  + contactText\n  + (contactUpdateFormUrl ? '\\n\\n联系人调整表单：\\n' + contactUpdateFormUrl : '');\nconst data = buildSuggestionText();\n\nconst csvGroupSignalValues = uniq([\n  ...(Array.isArray(base.departmentAccountNotifyDepartments) ? base.departmentAccountNotifyDepartments : []),\n  ...(Array.isArray(base.departmentAccountNotifyContacts) ? base.departmentAccountNotifyContacts : []),\n  ...(Array.isArray(base.departmentAccountNotifyEmails) ? base.departmentAccountNotifyEmails : []),\n  sanitize(base.departmentAccountContactText),\n]);\nconst csvGroupSignalText = csvGroupSignalValues.join('\\n');\nconst accountSignalValues = uniq([\n  ...(Array.isArray(base.departmentAccountNotifyAccounts) ? base.departmentAccountNotifyAccounts : []),\n  ...(Array.isArray(base.accountCandidates) ? base.accountCandidates : []),\n  sanitize(base.account),\n  sanitize(base.dbUser),\n  sanitize(base.user),\n  sanitize(base.executor),\n]).map((value) => value.toLowerCase().replace(/^u_/i, ''));\nconst mexicoSignalValues = uniq([\n  ...(Array.isArray(base.departmentAccountNotifySheets) ? base.departmentAccountNotifySheets : []),\n  ...(Array.isArray(base.departmentAccountNotifyCandidateSheets) ? base.departmentAccountNotifyCandidateSheets : []),\n  sanitize(base.cluster),\n  sanitize(base.country),\n  sanitize((base.evidence || {}).queryContext && (base.evidence || {}).queryContext.cluster),\n  sanitize((base.evidence || {}).queryContext && (base.evidence || {}).queryContext.country),\n  sanitize((base.evidence || {}).alert && (base.evidence || {}).alert.cluster),\n  sanitize((base.evidence || {}).alert && (base.evidence || {}).alert.country),\n]).map((value) => value.toLowerCase());\n\nconst isMexicoSignal = mexicoSignalValues.some((value) => /墨西哥|mexico|starrocks_mx|starrocks_mex|^mx$|^mex$/.test(value));\nconst isAifoxAccount = accountSignalValues.some((value) => value === 'e_ds_aifox');\nconst isMexicoAifoxGroupAlert = isMexicoSignal && isAifoxAccount;\nconst isOperationGroupAlert = Boolean(base.departmentAccountNotifyMatched)\n  && (/许诺|lunaxu@kn\\.group/i.test(csvGroupSignalText));\nconst isWeiduGroupAlert = Boolean(base.departmentAccountNotifyMatched)\n  && !isMexicoAifoxGroupAlert\n  && (/(^|\\n|\\s|,|，|、)唯渡($|\\n|\\s|,|，|、)/i.test(csvGroupSignalText)\n    || /@weidu\\.co\\b/i.test(csvGroupSignalText)\n    || /杜艳华|elsadu/i.test(csvGroupSignalText));\n\nconst specialGroupRules = [\n  {\n    matched: isMexicoAifoxGroupAlert,\n    botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || 'e10c0656-a479-4053-a9cd-18b4d1fe4c87'),\n    url: sanitize(notifyConfig.mexicoAifoxGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),\n    channel: 'mexico_aifox_group',\n    flag: 'mexicoAifoxGroupNotify',\n    reasonKey: 'mexicoAifoxGroupReason',\n    signalsKey: 'mexicoAifoxGroupSignals',\n    reason: '命中墨西哥 e_ds_aifox 账号级专属群机器人规则，改为墨西哥 aifox 群机器人通知，不发送个人 sidecar。',\n    signals: [...mexicoSignalValues, ...accountSignalValues],\n  },\n  {\n    matched: isOperationGroupAlert,\n    botId: sanitize(notifyConfig.operationGroupBotId || '66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302'),\n    url: sanitize(notifyConfig.operationGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),\n    channel: 'operation_group',\n    flag: 'operationGroupNotify',\n    reasonKey: 'operationGroupReason',\n    signalsKey: 'operationGroupSignals',\n    reason: '精确命中 CSV 映射且联系人/邮箱属于许诺，改为运营群机器人通知，不发送个人 sidecar。',\n    signals: csvGroupSignalValues,\n  },\n  {\n    matched: isWeiduGroupAlert,\n    botId: sanitize(notifyConfig.weiduGroupBotId || '9ce66a04-5acf-4f84-9fc0-c213760bae05'),\n    url: sanitize(notifyConfig.weiduGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),\n    channel: 'weidu_group',\n    flag: 'weiduGroupNotify',\n    reasonKey: 'weiduGroupReason',\n    signalsKey: 'weiduGroupSignals',\n    reason: '精确命中 CSV 映射且部门/联系人/邮箱属于唯渡，且未命中账号级专属群规则，改为唯渡群机器人通知，不发送个人 sidecar。',\n    signals: csvGroupSignalValues,\n  },\n];\nconst matchedSpecialGroupRule = specialGroupRules.find((rule) => rule.matched);\n\nif (matchedSpecialGroupRule) {\n  const payload = {\n    botId: matchedSpecialGroupRule.botId,\n    message: data,\n    mentions: []\n  };\n  const groupFlags = {\n    operationGroupNotify: false,\n    weiduGroupNotify: false,\n    mexicoAifoxGroupNotify: false,\n  };\n  groupFlags[matchedSpecialGroupRule.flag] = true;\n  return [{\n    json: {\n      ...base,\n      ...groupFlags,\n      notifyEmail: notifyEmails.join(','),\n      sidecarShouldSend: Boolean(matchedSpecialGroupRule.botId && data.trim()),\n      sidecarChannel: matchedSpecialGroupRule.channel,\n      sidecarUrl: matchedSpecialGroupRule.url,\n      sidecarPayload: payload,\n      sidecarPayloads: [payload],\n      sidecarRecipientCount: 1,\n      [matchedSpecialGroupRule.reasonKey]: matchedSpecialGroupRule.reason,\n      [matchedSpecialGroupRule.signalsKey]: matchedSpecialGroupRule.signals,\n      specialGroupRouteMatched: true,\n      specialGroupRouteChannel: matchedSpecialGroupRule.channel,\n    }\n  }];\n}\n\nconst payloads = notifyEmails.map((email) => {\n  const accountId = sanitize(notifyConfig.sidecarAccountId);\n  const token = sanitize(notifyConfig.sidecarToken);\n  const payload = { type: 'TEXT', email, data, accountId, token };\n  return {\n    email,\n    channel: 'default',\n    url: 'https://sidecar.kuainiu.chat/conversation',\n    payload,\n    shouldSend: Boolean(email && accountId && token && data.trim())\n  };\n});\nreturn payloads.map((entry) => ({\n  json: {\n    ...base,\n    notifyEmail: entry.email,\n    sidecarShouldSend: entry.shouldSend,\n    sidecarChannel: entry.channel,\n    sidecarUrl: entry.url,\n    sidecarPayload: entry.payload,\n    sidecarPayloads: payloads.map((item) => item.payload),\n    sidecarRecipientCount: payloads.length,\n    weiduGroupNotify: false,\n    mexicoAifoxGroupNotify: false\n  }\n}));"
+      },
+      "id": "513399cc-8a0b-44eb-bc9d-8043ada9c7d7",
+      "name": "Build Sidecar Payload",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48176,
+        13904
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const inputItems = $input.all();\nconst staticData = typeof $getWorkflowStaticData === 'function'\n  ? $getWorkflowStaticData('global')\n  : (typeof getWorkflowStaticData === 'function' ? getWorkflowStaticData('global') : {});\nconst now = Date.now();\nconst dedupeWindowMs = 2 * 60 * 60 * 1000;\nif (!staticData.queryNotifyDedupe || typeof staticData.queryNotifyDedupe !== 'object') {\n  staticData.queryNotifyDedupe = {};\n}\nconst store = staticData.queryNotifyDedupe;\nfor (const [key, value] of Object.entries(store)) {\n  const timestamp = Number(value && value.sentAt ? value.sentAt : value);\n  if (!Number.isFinite(timestamp) || now - timestamp > dedupeWindowMs) {\n    delete store[key];\n  }\n}\nreturn inputItems.map((item) => {\n  const base = (item && item.json) || {};\n  const queryId = String(base.queryId || '').trim();\n  const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();\n  let duplicateNotifySuppressed = false;\n  let duplicateNotifyReason = '';\n  const dedupeKey = queryId && recipientEmail ? queryId + '::' + recipientEmail : queryId;\n  if (dedupeKey) {\n    const record = store[dedupeKey];\n    const sentAt = Number(record && record.sentAt ? record.sentAt : record);\n    if (Number.isFinite(sentAt) && now - sentAt <= dedupeWindowMs) {\n      duplicateNotifySuppressed = true;\n      duplicateNotifyReason = 'duplicate queryId/email within 2h: ' + dedupeKey;\n    } else if (base.sidecarShouldSend) {\n      store[dedupeKey] = {\n        sentAt: now,\n        sessionId: String(base.sessionId || ''),\n        email: recipientEmail,\n      };\n    }\n  }\n  return { json: {\n    ...base,\n    sidecarShouldSend: Boolean(base.sidecarShouldSend) && !duplicateNotifySuppressed,\n    duplicateNotifySuppressed,\n    duplicateNotifyReason,\n    duplicateNotifyWindowMs: dedupeWindowMs,\n    duplicateNotifyKey: dedupeKey,\n  }};\n});"
+      },
+      "id": "3a5b1536-e869-4b9c-8869-cba4172780de",
+      "name": "Deduplicate Notify By QueryId",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        48368,
+        13824
+      ]
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ Boolean($json.sidecarShouldSend && $json.sidecarPayload && (($json.sidecarPayload.email && $json.sidecarPayload.accountId && $json.sidecarPayload.token && $json.sidecarPayload.data) || ($json.sidecarPayload.botId && $json.sidecarPayload.message))) }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "7f42f079-a26c-4c8e-8e77-ee353342b466",
+      "name": "Should Send Sidecar?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        48560,
+        13904
+      ]
+    },
+    {
+      "parameters": {
+        "method": "POST",
+        "url": "={{ $json.sidecarUrl || 'https://sidecar.kuainiu.chat/conversation' }}",
+        "sendHeaders": true,
+        "headerParameters": {
+          "parameters": [
+            {
+              "name": "Content-Type",
+              "value": "application/json"
+            }
+          ]
+        },
+        "sendBody": true,
+        "specifyBody": "json",
+        "jsonBody": "={{ $json.sidecarPayload }}",
+        "options": {}
+      },
+      "type": "n8n-nodes-base.httpRequest",
+      "typeVersion": 4.4,
+      "position": [
+        48784,
+        13808
+      ],
+      "id": "bedca395-096f-4ba4-9cd0-a19ea0c19e79",
+      "name": "Send Sidecar Alert",
+      "onError": "continueRegularOutput"
+    },
+    {
+      "parameters": {
+        "jsCode": "const base = $('Build Langfuse Batch').first().json || {};\nconst notify = $json || {};\nlet langfuse = { skipped: true, reason: base.langfuseSkipReason || '' };\ntry {\n  const node = $('Write Langfuse').first();\n  langfuse = node && node.json ? node.json : langfuse;\n} catch (error) {\n  langfuse = { skipped: true, reason: String(error && error.message ? error.message : error) };\n}\nconst aiResult = base.aiResult || {};\nconst evidenceAlert = (base.evidence || {}).alert || {};\nconst textOf = (value) => value === null || value === undefined ? '' : String(value);\nconst notifyConfig = base.notifyConfig || {};\nconst contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();\nconst dsInfoText = base.dsTaskMatchOk ? ('SQL 所属 DS 任务：\\n'\n  + (textOf(base.dsCountryName) ? textOf(base.dsCountryName) + ' DS 调度' : 'DS 调度')\n  + '「' + textOf(base.dsProject) + '」-「' + textOf(base.dsWorkflow) + '」-「' + textOf(base.dsTask) + '」任务\\n'\n  + '- 负责人：' + textOf(base.dsWorkflowOwner) + '\\n'\n  + '- 创建人：' + textOf(base.dsTaskCreator) + '\\n\\n') : '';\nconst backendSuggestionText = '异常查询：\\n'\n  + '- 集群：' + textOf(base.cluster) + '\\n'\n  + '- 优化后sql的详细地址：http://sr-admin.kuainiujinke.com/share/sql/' + textOf(base.queryId) + '\\n'\n  + '- CPU时间：' + textOf(evidenceAlert.cpuTime) + '\\n'\n  + '- 内存使用：' + textOf(evidenceAlert.memUsage) + '\\n'\n  + '- 执行时间：' + textOf(evidenceAlert.execTime) + '\\n'\n  + '- 扫描行数：' + textOf(evidenceAlert.scanRows) + '\\n'\n  + '- 用户：' + textOf(base.user) + '\\n\\n'\n  + dsInfoText\n  + '告警原因：\\n'\n  + '- ' + textOf(evidenceAlert.violationDetail) + '\\n\\n'\n  + 'AI结论：\\n'\n  + textOf(aiResult.oneLineConclusion) + '\\n\\n'\n  + '核心问题：\\n'\n  + textOf(aiResult.coreIssue) + '\\n\\n'\n  + '优化建议：\\n'\n  + textOf(aiResult.summary) + '\\n\\n'\n  + '优化后SQL：\\n'\n  + textOf(aiResult.optimizedSql) + '\\n\\n'\n  + '优化风险点：\\n'\n  + textOf(aiResult.risk) + '\\n\\n'\n  + '需人工验证：\\n'\n  + textOf(aiResult.validationAdvice) + '\\n\\n'\n  + '如果需要人工协助，请联系：\\n'\n  + textOf(base.countryOwnerNamesText)\n  + (contactUpdateFormUrl ? '\\n\\n联系人调整表单：\\n' + contactUpdateFormUrl : '');\nreturn [{ json: {\n  ok: true,\n  sessionId: base.sessionId || '',\n  queryId: base.queryId || '',\n  cluster: base.cluster || '',\n  user: base.user || '',\n  executor: base.executor || '',\n  result: aiResult || {},\n  notifyEmail: textOf(base.notifyEmail || 'jiangchuanchen@kn.group') || 'jiangchuanchen@kn.group',\n  notifyEmails: Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [textOf(base.notifyEmail || 'jiangchuanchen@kn.group') || 'jiangchuanchen@kn.group'],\n  countryOwnerEmails: base.countryOwnerEmails || [],\n  countryOwnerNames: base.countryOwnerNames || [],\n  countryOwnerNamesText: textOf(base.countryOwnerNamesText),\n  notifyTargetSource: base.notifyTargetSource || '',\n  departmentAccountNotifyMatched: !!base.departmentAccountNotifyMatched,\n  departmentAccountNotifySheets: base.departmentAccountNotifySheets || [],\n  departmentAccountNotifyAccounts: base.departmentAccountNotifyAccounts || [],\n  departmentAccountNotifyEmails: base.departmentAccountNotifyEmails || [],\n  contactCsvParseOk: !!base.contactCsvParseOk,\n  contactCsvRowCount: Number(base.contactCsvRowCount || 0),\n  contactCsvStdoutLength: Number(base.contactCsvStdoutLength || 0),\n  accountCandidates: base.accountCandidates || [],\n  countryFallbackEmails: base.countryFallbackEmails || [],\n  userInfo: base.userInfo || [],\n  ...(base.dsTaskMatchOk ? {\n    dsTaskMatchOk: true,\n    dsProject: textOf(base.dsProject),\n    dsWorkflow: textOf(base.dsWorkflow),\n    dsTask: textOf(base.dsTask),\n    dsWorkflowOwner: textOf(base.dsWorkflowOwner),\n    dsTaskCreator: textOf(base.dsTaskCreator),\n    dsCountryName: textOf(base.dsCountryName),\n    dsTaskMatchInfo: textOf(base.dsTaskMatchInfo),\n    dsTaskMatchTables: base.dsTaskMatchTables || [],\n  } : {}),\n  duplicateNotifySuppressed: !!base.duplicateNotifySuppressed,\n  duplicateNotifyReason: base.duplicateNotifyReason || '',\n  notifyResponse: notify,\n  langfuse: {\n    traceId: base.langfuseTraceId || '',\n    generationId: base.langfuseGenerationId || '',\n    generationIds: base.langfuseGenerationIds || [],\n    traceName: base.langfuseTraceName || '',\n    generationName: base.langfuseGenerationName || '',\n    usage: base.langfuseUsage || { prompt_tokens: 0, completion_tokens: 0, total_tokens: 0 },\n    attempts: base.langfuseAttempts || [],\n    attemptCount: Number(base.langfuseAttemptCount || 0),\n    accepted: !!langfuse && !langfuse.skipped,\n    skipped: !!langfuse.skipped,\n    response: langfuse\n  },\n  evidence: base.evidence || {},\n  prompt: base.prompt || '',\n  aiRawOutput: base.aiRawOutput || '',\n  optimizedExplainChecked: !!base.optimizedExplainChecked,\n  optimizedExplainOk: !!base.optimizedExplainOk,\n  optimizedExplainPermissionDenied: !!base.optimizedExplainPermissionDenied,\n  optimizedExplainError: base.optimizedExplainError || '',\n  optimizedExplainSummary: base.optimizedExplainSummary || '',\n  optimizedExplainRows: base.optimizedExplainRows || [],\n  backendSuggestionText\n}}];"
+      },
+      "id": "cf4ebf5e-65ac-4eed-ad93-29bf69110458",
+      "name": "Build Webhook Response",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        49312,
+        13920
+      ]
+    },
+    {
+      "parameters": {
+        "respondWith": "text",
+        "responseBody": "={{ $json.backendSuggestionText }}",
+        "options": {}
+      },
+      "id": "f6a9468e-71bd-401b-8e41-2a4fee2e6f68",
+      "name": "Respond to Webhook",
+      "type": "n8n-nodes-base.respondToWebhook",
+      "position": [
+        49840,
+        13952
+      ],
+      "typeVersion": 1.1
+    },
+    {
+      "parameters": {
+        "content": "Import the skill workflow first, then open Execute Skill Prep and reselect the imported workflow manually. Qwen API key has already been filled in Call Qwen Chat API.",
+        "height": 240,
+        "width": 420
+      },
+      "id": "447db045-22e7-4625-a922-47d95b10c7f3",
+      "name": "Sticky Note",
+      "type": "n8n-nodes-base.stickyNote",
+      "position": [
+        45008,
+        13456
+      ],
+      "typeVersion": 1
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "set -e\n\nREPO=/tmp/KN-YCGJ-TZ\nCSV=$REPO/alert-sql-notification/data/alert-contact-mapping.csv\nREPO_URL=https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git\nBRANCH=main\n\nexport GIT_TERMINAL_PROMPT=0\n\nif [ -d \"$REPO/.git\" ]; then\n  cd \"$REPO\"\n\n  git merge --abort >/dev/null 2>&1 || true\n  git rebase --abort >/dev/null 2>&1 || true\n\n  if ! git reset --hard HEAD >/dev/null 2>&1; then\n    cd /tmp\n    rm -rf \"$REPO\"\n  fi\nfi\n\nif [ ! -d \"$REPO/.git\" ]; then\n  rm -rf \"$REPO\"\n  git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO\"\nfi\n\ncd \"$REPO\"\ngit remote set-url origin \"$REPO_URL\"\ngit fetch origin \"$BRANCH\"\ngit checkout -B \"$BRANCH\" \"origin/$BRANCH\"\ngit reset --hard \"origin/$BRANCH\"\n\nif [ ! -s \"$CSV\" ]; then\n  echo \"CONTACT_CSV_NOT_FOUND_OR_EMPTY: $CSV\" >&2\n  exit 21\nfi\n\nCSV_BYTES=$(wc -c < \"$CSV\")\nCSV_LINES=$(wc -l < \"$CSV\")\n\nif [ \"$CSV_BYTES\" -lt 1000 ] || [ \"$CSV_LINES\" -lt 10 ]; then\n  echo \"CONTACT_CSV_TOO_SMALL: bytes=$CSV_BYTES lines=$CSV_LINES csv=$CSV\" >&2\n  exit 22\nfi\n\necho \"__N8N_CONTACT_CSV_META__ repo=$REPO csv=$CSV bytes=$CSV_BYTES lines=$CSV_LINES\" >&2\necho \"__N8N_CONTACT_CSV_BASE64_BEGIN__\"\nif base64 --help 2>/dev/null | grep -q -- '-w'; then\n  base64 -w 0 \"$CSV\"\nelse\n  base64 \"$CSV\" | tr -d '\\n'\nfi\necho\necho \"__N8N_CONTACT_CSV_BASE64_END__\"\n"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        47104,
+        13904
+      ],
+      "id": "fbd27e94-bb97-424c-9de2-f4b60988b35a",
+      "name": "Fetch Contact CSV",
+      "notesInFlow": true,
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "1SZA5cQDmeusdFOc",
+          "name": "n8n本机"
+        }
+      },
+      "notes": "兼容当前 n8n：使用 SSH 节点连接 n8n 本机，拉取 GitHub main 后读取 /root/KN-YCGJ-TZ 下的 CSV，并用 base64 marker 输出给下游解析。"
+    },
+    {
+      "parameters": {
+        "jsCode": "function collectStrings(value, seen = new Set()) {\n  const strings = [];\n  if (value === null || value === undefined) return strings;\n  if (typeof value === 'string') return [value];\n  if (typeof value !== 'object') return strings;\n  if (seen.has(value)) return strings;\n  seen.add(value);\n  if (Array.isArray(value)) {\n    for (const item of value) strings.push(...collectStrings(item, seen));\n    return strings;\n  }\n  for (const key of ['stdout', 'data', 'body', 'response', 'output', 'json']) {\n    if (typeof value[key] === 'string') strings.push(value[key]);\n  }\n  for (const item of Object.values(value)) strings.push(...collectStrings(item, seen));\n  return strings;\n}\n\nfunction decodeMarkedCsv(text) {\n  const input = String(text || '');\n  const match = input.match(/__N8N_CONTACT_CSV_BASE64_BEGIN__\\s*([A-Za-z0-9+/=\\r\\n]+?)\\s*__N8N_CONTACT_CSV_BASE64_END__/);\n  if (!match) return '';\n  try {\n    return Buffer.from(match[1].replace(/\\s+/g, ''), 'base64').toString('utf8').replace(/^\\uFEFF/, '');\n  } catch (error) {\n    return '';\n  }\n}\n\nfunction pickCsvText(items) {\n  const candidates = [];\n  const allTexts = [];\n  for (const item of items) {\n    for (const text of collectStrings(item)) {\n      if (!text) continue;\n      allTexts.push(String(text));\n    }\n  }\n  const combinedTexts = [\n    ...allTexts,\n    allTexts.join('\\n'),\n  ];\n  for (const text of combinedTexts) {\n    const marked = decodeMarkedCsv(text);\n    if (marked) {\n      candidates.push({ text: marked, hasHeader: true, source: 'base64_marker', length: marked.length });\n      continue;\n    }\n    const normalized = String(text).replace(/^\\uFEFF/, '');\n    const hasHeader = /国家\\s*,\\s*账号\\s*,\\s*(数据开发组|部门)\\s*,\\s*联系人\\s*,\\s*邮箱/.test(normalized);\n    if (hasHeader) candidates.push({ text: normalized, hasHeader, source: 'header_scan', length: normalized.length });\n  }\n  candidates.sort((a, b) => Number(b.hasHeader) - Number(a.hasHeader) || b.length - a.length);\n  return candidates.length ? candidates[0] : { text: '', hasHeader: false, source: 'not_found', length: 0 };\n}\n\nfunction extractContactCsv(text) {\n  const input = String(text || '').replace(/^\\uFEFF/, '');\n  const lines = input.split(/\\r?\\n/);\n  const headerIndex = lines.findIndex((line) => /国家\\s*,\\s*账号\\s*,\\s*(数据开发组|部门)\\s*,\\s*联系人\\s*,\\s*邮箱/.test(line.replace(/^\\uFEFF/, '')));\n  return headerIndex >= 0 ? lines.slice(headerIndex).join('\\n') : '';\n}\n\nfunction parseCsvRows(text) {\n  const rows = [];\n  let row = [];\n  let field = '';\n  let inQuotes = false;\n  const input = String(text || '').replace(/^\\uFEFF/, '');\n  for (let i = 0; i < input.length; i += 1) {\n    const ch = input[i];\n    if (ch === '\"') {\n      if (inQuotes && input[i + 1] === '\"') {\n        field += '\"';\n        i += 1;\n      } else {\n        inQuotes = !inQuotes;\n      }\n    } else if (ch === ',' && !inQuotes) {\n      row.push(field);\n      field = '';\n    } else if ((ch === '\\n' || ch === '\\r') && !inQuotes) {\n      if (ch === '\\r' && input[i + 1] === '\\n') i += 1;\n      row.push(field);\n      if (row.some((cell) => String(cell).trim())) rows.push(row);\n      row = [];\n      field = '';\n    } else {\n      field += ch;\n    }\n  }\n  row.push(field);\n  if (row.some((cell) => String(cell).trim())) rows.push(row);\n  if (rows.length < 2) return [];\n  const headers = rows[0].map((cell) => String(cell || '').replace(/^\\uFEFF/, '').trim());\n  return rows.slice(1).map((cells, index) => {\n    const obj = { __rowNumber: index + 2 };\n    headers.forEach((header, columnIndex) => {\n      obj[header] = String(cells[columnIndex] || '').trim();\n    });\n    return obj;\n  });\n}\n\nconst canonicalSheet = (value) => {\n  const text = String(value || '').trim().toLowerCase();\n  if (!text) return '';\n  if (/中国|china|starrocks_cn|\\bcn\\b/.test(text)) return 'cn';\n  if (/印尼|印度尼西亚|indonesia|starrocks_ine|starrocks_id|\\bine\\b|\\bid\\b/.test(text)) return 'ine';\n  if (/泰国|thailand|starrocks_th|\\bth\\b/.test(text)) return 'th';\n  if (/菲律宾|philippines|starrocks_ph|\\bph\\b/.test(text)) return 'ph';\n  if (/巴基斯坦|pakistan|starrocks_pak|starrocks_pk|\\bpak\\b|\\bpk\\b/.test(text)) return 'pk';\n  if (/墨西哥|mexico|starrocks_mex|starrocks_mx|\\bmex\\b|\\bmx\\b/.test(text)) return 'mx';\n  return text;\n};\nconst normalizeAccount = (value) => String(value || '').trim().replace(/^u_/i, '').toLowerCase();\nconst splitPeople = (value) => String(value || '')\n  .split(/[、,，;；/\\\\|\\n\\r\\t]+/)\n  .map((item) => item.trim())\n  .filter(Boolean);\nconst firstField = (row, names) => {\n  for (const name of names) {\n    if (row && row[name] !== undefined && row[name] !== null && String(row[name]).trim() !== '') return row[name];\n  }\n  return '';\n};\n\nconst inputItems = $input.all().map((item) => item.json || item).filter(Boolean);\nconst picked = pickCsvText(inputItems);\nconst csvText = extractContactCsv(picked.text);\nconst rows = parseCsvRows(csvText);\nconst collectedStringCount = inputItems.reduce((sum, item) => sum + collectStrings(item).length, 0);\nif (!rows.length) {\n  const preview = picked.text ? String(picked.text).slice(0, 500) : '';\n  throw new Error('CONTACT_CSV_PARSE_FAILED: 未读取到有效联系人 CSV，已中止发送，避免部门账号错误兜底到个人。pickSource=' + picked.source + '; collected=' + collectedStringCount + '; preview=' + preview);\n}\nconst accountNotifyMap = {};\nfor (const row of rows) {\n  const sheet = canonicalSheet(firstField(row, ['国家', 'country', 'sheet', '集群', 'cluster']));\n  const account = normalizeAccount(firstField(row, ['账号', 'account', 'user', '用户']));\n  if (!sheet || !account) continue;\n  const department = String(firstField(row, ['部门', '数据开发组', 'department', 'dept']) || '').trim();\n  const contacts = splitPeople(firstField(row, ['联系人', '修改后联系人', 'contacts', 'contact', 'name', 'names']));\n  const emails = splitPeople(firstField(row, ['邮箱', '修改后邮箱', 'emails', 'email']));\n  const note = String(firstField(row, ['备注', '备注(近2月访问)', 'note', 'remark', 'remarks']) || '').trim();\n  if (!emails.length) continue;\n  accountNotifyMap[sheet] = accountNotifyMap[sheet] || {};\n  accountNotifyMap[sheet][account] = {\n    department,\n    contacts,\n    emails,\n    note,\n    defaultedToCountryOwner: /未填写.*联系人|兜底.*国家负责人|国家负责人.*确认/.test(note)\n  };\n}\n\nreturn [{ json: {\n  contactCsvParseOk: rows.length > 0 && Object.keys(accountNotifyMap).length > 0,\n  contactCsvRowCount: rows.length,\n  contactCsvStdoutLength: csvText.length,\n  contactCsvInputItemCount: inputItems.length,\n  contactCsvPickedHasHeader: /国家\\s*,\\s*账号\\s*,\\s*(数据开发组|部门)\\s*,\\s*联系人\\s*,\\s*邮箱/.test(csvText),\n  contactCsvPickSource: picked.source,\n  contactCsvCollectedStringCount: collectedStringCount,\n  contactCsvPreview: csvText.slice(0, 200),\n  contactRows: rows,\n  accountNotifyMap\n}}];\n"
+      },
+      "id": "0181cbe2-442c-465d-a207-bbbeb62e480d",
+      "name": "Parse Contact CSV",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        47280,
+        13904
+      ]
+    },
+    {
+      "parameters": {
+        "authentication": "privateKey",
+        "command": "set -e\n\nREPO=/tmp/KN-YCGJ-TZ\nCSV=$REPO/alert-sql-notification/data/alert-contact-mapping.csv\nREPO_URL=https://github.com/chenjiuxuan1/KN-YCGJ-TZ.git\nBRANCH=main\n\nexport GIT_TERMINAL_PROMPT=0\n\nif [ -d \"$REPO/.git\" ]; then\n  cd \"$REPO\"\n\n  git merge --abort >/dev/null 2>&1 || true\n  git rebase --abort >/dev/null 2>&1 || true\n\n  if ! git reset --hard HEAD >/dev/null 2>&1; then\n    cd /tmp\n    rm -rf \"$REPO\"\n  fi\nfi\n\nif [ ! -d \"$REPO/.git\" ]; then\n  rm -rf \"$REPO\"\n  git clone --branch \"$BRANCH\" \"$REPO_URL\" \"$REPO\"\nfi\n\ncd \"$REPO\"\ngit remote set-url origin \"$REPO_URL\"\ngit fetch origin \"$BRANCH\"\ngit checkout -B \"$BRANCH\" \"origin/$BRANCH\"\ngit reset --hard \"origin/$BRANCH\"\n\nif [ ! -s \"$CSV\" ]; then\n  echo \"CONTACT_CSV_NOT_FOUND_OR_EMPTY: $CSV\" >&2\n  exit 21\nfi\n\nCSV_BYTES=$(wc -c < \"$CSV\")\nCSV_LINES=$(wc -l < \"$CSV\")\n\nif [ \"$CSV_BYTES\" -lt 1000 ] || [ \"$CSV_LINES\" -lt 10 ]; then\n  echo \"CONTACT_CSV_TOO_SMALL: bytes=$CSV_BYTES lines=$CSV_LINES csv=$CSV\" >&2\n  exit 22\nfi\n\necho \"__N8N_CONTACT_CSV_META__ repo=$REPO csv=$CSV bytes=$CSV_BYTES lines=$CSV_LINES\" >&2\necho \"__N8N_CONTACT_CSV_BASE64_BEGIN__\"\nif base64 --help 2>/dev/null | grep -q -- '-w'; then\n  base64 -w 0 \"$CSV\"\nelse\n  base64 \"$CSV\" | tr -d '\\n'\nfi\necho\necho \"__N8N_CONTACT_CSV_BASE64_END__\"\n"
+      },
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        47584,
+        13376
+      ],
+      "id": "2ec92a2a-9cc8-45c0-bfcc-472bfb209d0d",
+      "name": "Fetch Contact CSV2",
+      "notesInFlow": true,
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "1SZA5cQDmeusdFOc",
+          "name": "n8n本机"
+        }
+      },
+      "notes": "兼容当前 n8n：使用 SSH 节点连接 n8n 本机，拉取 GitHub main 后读取 /root/KN-YCGJ-TZ 下的 CSV，并用 base64 marker 输出给下游解析。"
+    },
+    {
+      "parameters": {
+        "conditions": {
+          "boolean": [
+            {
+              "value1": "={{ (() => {\n  const base = $json || {};\n  const evidence = base.evidence || {};\n  const queryContext = evidence.queryContext || {};\n  const alert = evidence.alert || {};\n  const values = [\n    base.user,\n    base.executor,\n    base.account,\n    base.dbUser,\n    queryContext.user,\n    queryContext.executor,\n    queryContext.account,\n    queryContext.dbUser,\n    alert.user,\n    alert.executor\n  ];\n  return values\n    .map((value) => String(value || '').trim().toLowerCase())\n    .filter(Boolean)\n    .some((value) => /^[a-z]+_/.test(value));\n})() }}",
+              "value2": true
+            }
+          ]
+        },
+        "options": {}
+      },
+      "id": "fb107263-c0aa-4c42-84a1-0fc0990769c2",
+      "name": "Should Match DS Task?",
+      "type": "n8n-nodes-base.if",
+      "typeVersion": 2.2,
+      "position": [
+        45888,
+        13808
+      ],
+      "notesInFlow": true,
+      "notes": "提前过滤个人账号：只有 user/executor/account/dbUser 等字段存在类似 u_、e_、e_ds_ 这类前缀时才进入 DS 匹配。像 jiangchuanchen 这种无前缀个人账号默认不是 DS 调度，直接跳过 DS 查询，避免误匹配和无意义查询。"
+    },
+    {
+      "parameters": {
+        "workflowId": {
+          "__rl": true,
+          "value": "DS任务匹配候选查询_execute_workflow",
+          "mode": "name",
+          "cachedResultName": "DS任务匹配候选查询_execute_workflow"
+        },
+        "workflowInputs": {
+          "mappingMode": "defineBelow",
+          "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}"
+        },
+        "options": {}
+      },
+      "id": "8f75b5b1-5f2d-4b12-bf6b-6e0df6a3d3ad",
+      "name": "Match DS Task Candidates",
+      "type": "n8n-nodes-base.executeWorkflow",
+      "typeVersion": 1.2,
+      "position": [
+        46000,
+        13552
+      ],
+      "alwaysOutputData": true,
+      "onError": "continueRegularOutput",
+      "notesInFlow": true,
+      "notes": "调用子 workflow：DS任务匹配候选查询_execute_workflow。子任务按国家走跳板机，在 SSH 节点机器通过 GitHub zip 拉取治理自动化代码，并查询 DS 3.4 元数据候选任务。导入后如 n8n 未自动按名称绑定，请手动选择该子 workflow。"
+    },
+    {
+      "parameters": {
+        "jsCode": "const safeFirst = (nodeName) => {\n  try {\n    const result = $(nodeName).first();\n    return result && result.json ? result.json : null;\n  } catch (error) {\n    return null;\n  }\n};\n\nconst base = safeFirst('Execute Skill Prep') || {};\nconst inputRows = $input.all().map((item) => item.json || {}).filter((row) => row && Object.keys(row).length > 0);\n\nconst DROP_PREFIX_RE = /^\\s*drop\\s+table\\s+(?:if\\s+exists\\s+)?[`\"]?[\\w.]+\\s*;\\s*/i;\nconst ACTION_RE = /\\b(create|insert|update|delete|replace|alter|drop|truncate)\\b/i;\nconst TABLE_RE = /\\b(?:from|join|into|overwrite|update|table)\\s+([`\"]?[a-zA-Z_][\\w.]*)/ig;\nconst NON_TABLE = new Set(['select', 'table', 'values', 'if', 'exists', 'as', 'where']);\n\nfunction normalizeSql(sql) {\n  let text = String(sql || '');\n  text = text.replace(/--[^\\n]*/g, ' ');\n  text = text.replace(/\\/\\*[\\s\\S]*?\\*\\//g, ' ');\n  text = text.toLowerCase().split(/\\s+/).filter(Boolean).join(' ');\n  while (DROP_PREFIX_RE.test(text)) text = text.replace(DROP_PREFIX_RE, '');\n  return text;\n}\n\nfunction extractActionTables(sqlNorm) {\n  if (!sqlNorm) return { action: '', tables: [] };\n  const actionMatch = sqlNorm.match(ACTION_RE);\n  const action = actionMatch ? actionMatch[1].toLowerCase() : String(sqlNorm.split(' ', 1)[0] || '').toLowerCase();\n  const tables = new Set();\n  TABLE_RE.lastIndex = 0;\n  let match;\n  while ((match = TABLE_RE.exec(sqlNorm)) !== null) {\n    const table = String(match[1] || '').replace(/^[`\"]|[`\"]$/g, '');\n    if (table && !NON_TABLE.has(table)) tables.add(table);\n  }\n  return { action, tables: Array.from(tables).sort() };\n}\n\nfunction arraySubset(left, right) {\n  const rightSet = new Set(right);\n  return left.every((item) => rightSet.has(item));\n}\n\nfunction sameSet(left, right) {\n  return left.length === right.length && arraySubset(left, right);\n}\n\nfunction candidateSql(row) {\n  return String(\n    row.sql_content\n    || row.sqlContent\n    || row.stmt\n    || row.script_content\n    || row.raw_script\n    || row.sql_text\n    || row.script_text\n    || row.statement_text\n    || row.resource_list\n    || row.script\n    || ''\n  ).trim();\n}\n\nfunction countryNameFromCluster(cluster) {\n  const value = String(cluster || '').toLowerCase();\n  if (value.includes('starrocks_ine') || value === 'ine') return '印尼';\n  if (value.includes('starrocks_pak') || value === 'pak') return '巴基斯坦';\n  if (value.includes('starrocks_ph') || value === 'ph') return '菲律宾';\n  if (value.includes('starrocks_th') || value === 'th') return '泰国';\n  if (value.includes('starrocks_mex') || value === 'mex') return '墨西哥';\n  if (value.includes('starrocks_cn') || value === 'cn') return '中国';\n  return '';\n}\n\nconst sourceSql = String(\n  ((base.evidence || {}).queryContext || {}).sqlText\n  || base.sqlText\n  || base.originalSql\n  || ((base.aiResult || {}).optimizedSql)\n  || ''\n);\nconst sourceNorm = normalizeSql(sourceSql);\nconst source = extractActionTables(sourceNorm);\n\nconst candidates = inputRows\n  .filter((row) => candidateSql(row))\n  .map((row) => {\n    const parsed = extractActionTables(normalizeSql(candidateSql(row)));\n    return { ...row, _action: parsed.action, _tables: parsed.tables };\n  });\n\nlet best = null;\nlet matchInfo = 'no-match';\nif (!source.action || !source.tables.length) {\n  matchInfo = 'no-action-or-table';\n} else {\n  const exact = [];\n  const superset = [];\n  for (const candidate of candidates) {\n    if (candidate._action !== source.action || !arraySubset(source.tables, candidate._tables)) continue;\n    if (sameSet(candidate._tables, source.tables)) exact.push(candidate);\n    else superset.push(candidate);\n  }\n  if (exact.length) {\n    best = exact[0];\n    matchInfo = 'exact(' + exact.length + ')';\n  } else if (superset.length) {\n    superset.sort((a, b) => {\n      const extraA = a._tables.filter((table) => !source.tables.includes(table)).length;\n      const extraB = b._tables.filter((table) => !source.tables.includes(table)).length;\n      return extraA - extraB;\n    });\n    best = superset[0];\n    const extra = best._tables.filter((table) => !source.tables.includes(table)).length;\n    matchInfo = 'superset(+' + extra + ')';\n  }\n}\n\nif (!best) {\n  return [{ json: {\n    ...base,\n    dsTaskMatchOk: false,\n    dsTaskMatchInfo: matchInfo,\n    dsTaskMatchAction: source.action,\n    dsTaskMatchTables: source.tables,\n    dsTaskCandidateCount: candidates.length,\n  }}];\n}\n\nconst dsInfo = {\n  project: String(best.project_name || '').trim(),\n  workflow: String(best.workflow_name || '').trim(),\n  task: String(best.task_name || '').trim(),\n  workflowOwner: String(best.workflow_owner || '').trim(),\n  taskCreator: String(best.task_creator || '').trim(),\n  countryName: countryNameFromCluster(base.cluster || base.country),\n  matchInfo,\n  action: source.action,\n  tables: source.tables,\n};\n\nreturn [{ json: {\n  ...base,\n  dsTaskMatchOk: true,\n  dsTaskMatchInfo: matchInfo,\n  dsTaskMatchAction: source.action,\n  dsTaskMatchTables: source.tables,\n  dsTaskCandidateCount: candidates.length,\n  dsInfo,\n  dsProject: dsInfo.project,\n  dsWorkflow: dsInfo.workflow,\n  dsTask: dsInfo.task,\n  dsWorkflowOwner: dsInfo.workflowOwner,\n  dsTaskCreator: dsInfo.taskCreator,\n  dsCountryName: dsInfo.countryName,\n}}];"
+      },
+      "id": "a9a6b3d0-05dc-4a41-9355-8f4f61d69f23",
+      "name": "Merge DS Task Match",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        46112,
+        13696
+      ],
+      "notesInFlow": true,
+      "notes": "复用 match_and_update.py 的 action + table set 匹配逻辑。匹配成功才向后续数据增加 dsProject/dsWorkflow/dsTask 等字段；匹配失败不影响原通知流程。"
+    }
+  ],
+  "pinData": {},
+  "connections": {
+    "Webhook": {
+      "main": [
+        [
+          {
+            "node": "Execute Skill Prep",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Execute Skill Prep": {
+      "main": [
+        [
+          {
+            "node": "Should Match DS Task?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Call Qwen Chat API": {
+      "main": [
+        [
+          {
+            "node": "Parse AI Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse AI Result": {
+      "main": [
+        [
+          {
+            "node": "Has Optimized SQL?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Has Optimized SQL?": {
+      "main": [
+        [
+          {
+            "node": "Run Optimized Explain",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Skip Optimized Explain",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Run Optimized Explain": {
+      "main": [
+        [
+          {
+            "node": "Merge Optimized Explain Result",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Optimized Explain Result": {
+      "main": [
+        [
+          {
+            "node": "Notify Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Skip Optimized Explain": {
+      "main": [
+        [
+          {
+            "node": "Notify Config",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Notify Config": {
+      "main": [
+        [
+          {
+            "node": "Fetch Contact CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Get User Info": {
+      "main": [
+        [
+          {
+            "node": "Merge Notify Target",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge Notify Target": {
+      "main": [
+        [
+          {
+            "node": "Build Langfuse Batch",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Langfuse Batch": {
+      "main": [
+        [
+          {
+            "node": "Should Write Langfuse?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Write Langfuse?": {
+      "main": [
+        [
+          {
+            "node": "Write Langfuse",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Sidecar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Write Langfuse": {
+      "main": [
+        [
+          {
+            "node": "Build Sidecar Payload",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Sidecar Payload": {
+      "main": [
+        [
+          {
+            "node": "Deduplicate Notify By QueryId",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Send Sidecar?": {
+      "main": [
+        [
+          {
+            "node": "Send Sidecar Alert",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Build Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Send Sidecar Alert": {
+      "main": [
+        [
+          {
+            "node": "Build Webhook Response",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Webhook Response": {
+      "main": [
+        [
+          {
+            "node": "Respond to Webhook",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Deduplicate Notify By QueryId": {
+      "main": [
+        [
+          {
+            "node": "Should Send Sidecar?",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Contact CSV": {
+      "main": [
+        [
+          {
+            "node": "Parse Contact CSV",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Parse Contact CSV": {
+      "main": [
+        [
+          {
+            "node": "Get User Info",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Fetch Contact CSV2": {
+      "main": [
+        [
+          {
+            "node": "Fetch Contact CSV2",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Should Match DS Task?": {
+      "main": [
+        [
+          {
+            "node": "Match DS Task Candidates",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "Call Qwen Chat API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Match DS Task Candidates": {
+      "main": [
+        [
+          {
+            "node": "Merge DS Task Match",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Merge DS Task Match": {
+      "main": [
+        [
+          {
+            "node": "Call Qwen Chat API",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1",
+    "binaryMode": "separate"
+  },
+  "versionId": "f5e3203c-21fe-4e68-88c7-d81abcb36c4a",
+  "meta": {
+    "templateCredsSetupCompleted": true,
+    "instanceId": "9b8dca2625dfded9c94218816984fe8bf5bd91d03aaffc5e971fd46b2e9dc2e8"
+  },
+  "id": "IfNEsiKRDsqDpanT",
+  "tags": []
+}
