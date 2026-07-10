@@ -460,11 +460,14 @@ def candidate_sql(row: dict[str, str]) -> str:
 def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, Any]]:
     source_action, source_tables = extract_action_tables(source_sql)
     source_targets = extract_target_tables(source_sql)
+    source_is_write = source_action in {"create", "insert", "update", "delete", "replace", "alter", "drop", "truncate"}
+    require_target_owner = bool(source_targets and source_is_write)
     meta: dict[str, Any] = {
         "match_mode": "remote_weighted_target_table",
         "source_action": source_action,
         "source_target_tables": source_targets,
         "source_tables": source_tables,
+        "require_target_owner": require_target_owner,
         "raw_candidate_count": len(rows),
         "match_info": "no-match",
     }
@@ -476,14 +479,18 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
     superset: list[tuple[dict[str, str], list[str]]] = []
     scored: list[tuple[float, dict[str, str], list[str], dict[str, Any]]] = []
     for row in rows:
-        row_action, row_tables = extract_action_tables(candidate_sql(row))
+        row_sql = candidate_sql(row)
+        row_action, row_tables = extract_action_tables(row_sql)
+        row_targets = extract_target_tables(row_sql)
+        row_target_overlap = count_table_overlap(source_targets, row_targets)
         target_overlap = count_table_overlap(source_targets, row_tables)
         table_overlap = count_table_overlap(source_tables, row_tables)
         action_match = row_action == source_action
         task_name_match = target_task_name_matches(source_targets, str(row.get("task_name", "")))
         score = (
             (3000 if task_name_match else 0)
-            + (1000 if target_overlap else 0)
+            + (1200 if row_target_overlap else 0)
+            + (500 if target_overlap else 0)
             + (200 if action_match else 0)
             + (table_overlap * 10)
         )
@@ -492,14 +499,24 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         score_meta = {
             "row_action": row_action,
             "row_tables": row_tables,
+            "row_targets": row_targets,
             "task_name_match": task_name_match,
             "target_overlap": target_overlap,
+            "row_target_overlap": row_target_overlap,
             "table_overlap": table_overlap,
             "score": score,
         }
-        if task_name_match or target_overlap or table_overlap >= 3:
+        # For write SQL with a clear target table, do not infer ownership from
+        # source-table overlap alone. Downstream refresh jobs and helper tasks
+        # often read the same table, but they are not the task that produced it.
+        if require_target_owner:
+            if task_name_match or (row_target_overlap and action_match):
+                scored.append((score, row, row_tables, score_meta))
+        elif task_name_match or target_overlap or table_overlap >= 3:
             scored.append((score, row, row_tables, score_meta))
 
+        if require_target_owner and not (task_name_match or (row_target_overlap and action_match)):
+            continue
         if row_action != source_action or not is_subset(source_tables, row_tables):
             continue
         if same_set(source_tables, row_tables):
