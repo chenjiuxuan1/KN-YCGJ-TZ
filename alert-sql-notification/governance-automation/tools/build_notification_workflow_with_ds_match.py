@@ -210,7 +210,7 @@ if (!best) {
     dsTaskMatchOk: false,
     dsTaskMatchRequired: true,
     dsTaskMatchMissingNeedsRecord: true,
-    dsTaskMissingNotice: '当前账号属于系统/部门/调度账号，已尝试匹配 DS 任务但未找到归属。请负责人补充确认 DS 项目、工作流、任务，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。',
+    dsTaskMissingNotice: '当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。',
     dsTaskMatchInfo: matchInfo,
     dsTaskMatchAction: source.action,
     dsTaskMatchTables: source.tables,
@@ -296,7 +296,7 @@ def patch_sidecar_message(js_code: str) -> str:
             "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);",
             "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
-            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';",
         )
         js_code = js_code.replace(
@@ -363,7 +363,7 @@ def patch_webhook_response(js_code: str) -> str:
             "  + '- 负责人：' + textOf(base.dsWorkflowOwner) + '\\n'\n"
             "  + '- 创建人：' + textOf(base.dsTaskCreator) + '\\n\\n') : '';\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
-            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';",
         )
         js_code = js_code.replace("  + '告警原因：\\n'\n", "  + dsInfoText\n  + dsMissingNoticeText\n  + '告警原因：\\n'\n")
@@ -371,7 +371,7 @@ def patch_webhook_response(js_code: str) -> str:
         js_code = js_code.replace(
             "const backendSuggestionText = '异常查询：\\n'",
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
-            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';\n"
             "const backendSuggestionText = '异常查询：\\n'",
         )
