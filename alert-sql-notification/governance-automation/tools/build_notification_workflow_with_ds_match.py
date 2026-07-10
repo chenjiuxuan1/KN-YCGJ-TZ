@@ -152,6 +152,9 @@ if (remoteBest) {
   return [{ json: {
     ...base,
     dsTaskMatchOk: true,
+    dsTaskMatchRequired: true,
+    dsTaskMatchMissingNeedsRecord: false,
+    dsTaskMissingNotice: '',
     dsTaskMatchInfo: dsInfo.matchInfo,
     dsTaskMatchConfidence: dsInfo.confidence,
     dsTaskMatchAction: source.action,
@@ -205,6 +208,9 @@ if (!best) {
   return [{ json: {
     ...base,
     dsTaskMatchOk: false,
+    dsTaskMatchRequired: true,
+    dsTaskMatchMissingNeedsRecord: true,
+    dsTaskMissingNotice: '当前账号属于系统/部门/调度账号，已尝试匹配 DS 任务但未找到归属。请负责人补充确认 DS 项目、工作流、任务，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。',
     dsTaskMatchInfo: matchInfo,
     dsTaskMatchAction: source.action,
     dsTaskMatchTables: source.tables,
@@ -227,6 +233,9 @@ const dsInfo = {
 return [{ json: {
   ...base,
   dsTaskMatchOk: true,
+  dsTaskMatchRequired: true,
+  dsTaskMatchMissingNeedsRecord: false,
+  dsTaskMissingNotice: '',
   dsTaskMatchInfo: matchInfo,
   dsTaskMatchAction: source.action,
   dsTaskMatchTables: source.tables,
@@ -274,6 +283,45 @@ def connect_if(workflow: dict, source: str, true_target: str, false_target: str)
 
 
 def patch_sidecar_message(js_code: str) -> str:
+    if "dsMissingCcEmail" not in js_code:
+        js_code = js_code.replace(
+            "const notifyEmails = uniq(Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [base.notifyEmail || 'jiangchuanchen@kn.group']);",
+            "let notifyEmails = uniq(Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [base.notifyEmail || 'jiangchuanchen@kn.group']);\n"
+            "if (base.dsTaskMatchMissingNeedsRecord) {\n"
+            "  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n"
+            "}",
+        )
+    if "dsMissingNoticeText" not in js_code:
+        js_code = js_code.replace(
+            "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);",
+            "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);\n"
+            "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  : '';",
+        )
+        js_code = js_code.replace(
+            "  + '告警原因：\\n'\n",
+            "  + dsMissingNoticeText\n  + '告警原因：\\n'\n",
+        )
+    if "dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord" not in js_code:
+        js_code = js_code.replace(
+            "      notifyEmail: notifyEmails.join(','),\n      sidecarShouldSend:",
+            "      notifyEmail: notifyEmails.join(','),\n"
+            "      notifyEmails,\n"
+            "      dsTaskMatchRequired: !!base.dsTaskMatchRequired,\n"
+            "      dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,\n"
+            "      dsTaskMissingNotice: sanitize(base.dsTaskMissingNotice),\n"
+            "      sidecarShouldSend:",
+        )
+        js_code = js_code.replace(
+            "    notifyEmail: entry.email,\n    sidecarShouldSend:",
+            "    notifyEmail: entry.email,\n"
+            "    notifyEmails,\n"
+            "    dsTaskMatchRequired: !!base.dsTaskMatchRequired,\n"
+            "    dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,\n"
+            "    dsTaskMissingNotice: sanitize(base.dsTaskMissingNotice),\n"
+            "    sidecarShouldSend:",
+        )
     insert = (
         "  + (base.dsTaskMatchOk ? 'SQL 所属 DS 任务：\\n'"
         " + (sanitize(base.dsCountryName) ? sanitize(base.dsCountryName) + ' DS 调度' : 'DS 调度')"
@@ -313,9 +361,33 @@ def patch_webhook_response(js_code: str) -> str:
             "  + (textOf(base.dsCountryName) ? textOf(base.dsCountryName) + ' DS 调度' : 'DS 调度')\n"
             "  + '「' + textOf(base.dsProject) + '」-「' + textOf(base.dsWorkflow) + '」-「' + textOf(base.dsTask) + '」任务\\n'\n"
             "  + '- 负责人：' + textOf(base.dsWorkflowOwner) + '\\n'\n"
-            "  + '- 创建人：' + textOf(base.dsTaskCreator) + '\\n\\n') : '';",
+            "  + '- 创建人：' + textOf(base.dsTaskCreator) + '\\n\\n') : '';\n"
+            "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  : '';",
         )
-        js_code = js_code.replace("  + '告警原因：\\n'\n", "  + dsInfoText\n  + '告警原因：\\n'\n")
+        js_code = js_code.replace("  + '告警原因：\\n'\n", "  + dsInfoText\n  + dsMissingNoticeText\n  + '告警原因：\\n'\n")
+    elif "dsMissingNoticeText" not in js_code:
+        js_code = js_code.replace(
+            "const backendSuggestionText = '异常查询：\\n'",
+            "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。请负责人补充确认 DS 归属，并记录到异常 SQL / DS 治理表；本次已同步发送给江川协助跟进。\\n\\n'\n"
+            "  : '';\n"
+            "const backendSuggestionText = '异常查询：\\n'",
+        )
+        js_code = js_code.replace("  + dsInfoText\n  + '告警原因：\\n'\n", "  + dsInfoText\n  + dsMissingNoticeText\n  + '告警原因：\\n'\n")
+    if "dsTaskMatchMissingNeedsRecord:" not in js_code:
+        js_code = js_code.replace(
+            "  userInfo: base.userInfo || [],",
+            "  userInfo: base.userInfo || [],\n"
+            "  dsTaskMatchRequired: !!base.dsTaskMatchRequired,\n"
+            "  dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,\n"
+            "  dsTaskMissingNotice: textOf(base.dsTaskMissingNotice),\n"
+            "  dsTaskMatchInfo: textOf(base.dsTaskMatchInfo),\n"
+            "  dsTaskMatchConfidence: textOf(base.dsTaskMatchConfidence),\n"
+            "  dsTaskMatchTables: base.dsTaskMatchTables || [],\n"
+            "  dsTaskCandidateCount: Number(base.dsTaskCandidateCount || 0),",
+        )
     if "dsTaskMatchOk:" not in js_code:
         js_code = js_code.replace(
             "  userInfo: base.userInfo || [],",
