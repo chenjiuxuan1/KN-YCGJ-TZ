@@ -422,6 +422,38 @@ def target_task_name_matches(targets: list[str], task_name: str) -> bool:
     return False
 
 
+def target_resource_ref_matches(targets: list[str], value: str) -> bool:
+    """Return true when a Shell/resource reference points to the target table job.
+
+    DS Shell tasks often store only a command or resource path such as
+    ``.../dwt_user_behavior_base_snap.sh`` in task_params. That should be treated
+    as a strong owner signal for target table ``dwt.dwt_user_behavior_base_snap``.
+    A derived name like ``dwt_user_behavior_base_snap_hot_mv.sql`` is intentionally
+    not accepted.
+    """
+    text = normalize_name_token(value)
+    if not text:
+        return False
+    parts = [part for part in text.split("_") if part]
+    # Also keep path-like chunks before normalization by splitting common separators.
+    raw_chunks = [
+        normalize_name_token(chunk.rsplit(".", 1)[0])
+        for chunk in re.split(r"[/\\\s,;:'\"()\[\]{}]+", str(value or "").lower())
+        if chunk
+    ]
+    candidates = set(raw_chunks)
+    # Rebuild suffix windows from the normalized text so full paths ending with the
+    # target file name can be matched without accepting longer derived task names.
+    for index in range(len(parts)):
+        candidates.add("_".join(parts[index:]))
+    for target in targets:
+        leaf_token = normalize_name_token(table_leaf(target))
+        full_token = normalize_name_token(target)
+        if leaf_token in candidates or full_token in candidates:
+            return True
+    return False
+
+
 def table_matches(left: str, right: str) -> bool:
     left_value = str(left or "").lower()
     right_value = str(right or "").lower()
@@ -487,8 +519,10 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         table_overlap = count_table_overlap(source_tables, row_tables)
         action_match = row_action == source_action
         task_name_match = target_task_name_matches(source_targets, str(row.get("task_name", "")))
+        resource_ref_match = target_resource_ref_matches(source_targets, row_sql)
         score = (
             (3000 if task_name_match else 0)
+            + (2200 if resource_ref_match else 0)
             + (1200 if row_target_overlap else 0)
             + (500 if target_overlap else 0)
             + (200 if action_match else 0)
@@ -501,6 +535,7 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
             "row_tables": row_tables,
             "row_targets": row_targets,
             "task_name_match": task_name_match,
+            "resource_ref_match": resource_ref_match,
             "target_overlap": target_overlap,
             "row_target_overlap": row_target_overlap,
             "table_overlap": table_overlap,
@@ -510,12 +545,12 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         # source-table overlap alone. Downstream refresh jobs and helper tasks
         # often read the same table, but they are not the task that produced it.
         if require_target_owner:
-            if task_name_match or (row_target_overlap and action_match):
+            if task_name_match or resource_ref_match or (row_target_overlap and action_match):
                 scored.append((score, row, row_tables, score_meta))
         elif task_name_match or target_overlap or table_overlap >= 3:
             scored.append((score, row, row_tables, score_meta))
 
-        if require_target_owner and not (task_name_match or (row_target_overlap and action_match)):
+        if require_target_owner and not (task_name_match or resource_ref_match or (row_target_overlap and action_match)):
             continue
         if row_action != source_action or not is_subset(source_tables, row_tables):
             continue
@@ -548,12 +583,12 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         scored.sort(key=lambda item: item[0], reverse=True)
         best_score, best, tables, score_meta = scored[0]
         confidence = "medium" if (score_meta["task_name_match"] or score_meta["target_overlap"]) else "low"
-        if score_meta["task_name_match"]:
+        if score_meta["task_name_match"] or score_meta["resource_ref_match"]:
             confidence = "high"
         elif score_meta["target_overlap"] and score_meta["table_overlap"] >= 5 and score_meta["row_action"] == source_action:
             confidence = "high"
         best["ds_match_remote_info"] = (
-            f"scored(score={int(best_score)},taskName={int(score_meta['task_name_match'])},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
+            f"scored(score={int(best_score)},taskName={int(score_meta['task_name_match'])},resourceRef={int(score_meta['resource_ref_match'])},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
         )
         best["ds_match_confidence"] = confidence
         meta["match_info"] = best["ds_match_remote_info"]
@@ -562,6 +597,7 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         meta["matched_table_overlap"] = score_meta["table_overlap"]
         meta["matched_target_overlap"] = score_meta["target_overlap"]
         meta["matched_task_name"] = bool(score_meta["task_name_match"])
+        meta["matched_resource_ref"] = bool(score_meta["resource_ref_match"])
         return [best], meta
 
     return [], meta
@@ -576,13 +612,18 @@ def build_script_filter_sql(source_sql: str, max_terms: int = 12) -> tuple[str, 
     for table in targets + tables:
         if table not in terms:
             terms.append(table)
+        leaf = table_leaf(table)
+        if leaf and leaf not in terms:
+            terms.append(leaf)
     terms = terms[:max_terms]
     lowered_script = "LOWER(" + SCRIPT_CONTENT_EXPR + ")"
+    lowered_task_name = "LOWER(td.name)"
     like_parts = []
     for table in terms:
         # table tokens come from a restrictive regex, but keep SQL escaping anyway.
         escaped = table.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
         like_parts.append(f"{lowered_script} LIKE '%{escaped}%' ESCAPE '\\\\'")
+        like_parts.append(f"{lowered_task_name} LIKE '%{escaped}%' ESCAPE '\\\\'")
     return "AND (" + "\n    OR ".join(like_parts) + ")", terms
 
 
