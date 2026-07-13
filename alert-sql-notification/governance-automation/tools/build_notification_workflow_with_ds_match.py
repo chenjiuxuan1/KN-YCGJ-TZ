@@ -283,6 +283,22 @@ def connect_if(workflow: dict, source: str, true_target: str, false_target: str)
 
 
 def patch_sidecar_message(js_code: str) -> str:
+    if "safeNodeJson('Merge DS Task Match')" not in js_code:
+        js_code = js_code.replace(
+            "const base = $('Build Langfuse Batch').first().json || {};",
+            "const safeNodeJson = (nodeName) => {\n"
+            "  try {\n"
+            "    const node = $(nodeName).first();\n"
+            "    return node && node.json ? node.json : {};\n"
+            "  } catch (error) {\n"
+            "    return {};\n"
+            "  }\n"
+            "};\n"
+            "const base = {\n"
+            "  ...safeNodeJson('Build Langfuse Batch'),\n"
+            "  ...safeNodeJson('Merge DS Task Match'),\n"
+            "};",
+        )
     if "dsMissingCcEmail" not in js_code:
         js_code = js_code.replace(
             "const notifyEmails = uniq(Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [base.notifyEmail || 'jiangchuanchen@kn.group']);",
