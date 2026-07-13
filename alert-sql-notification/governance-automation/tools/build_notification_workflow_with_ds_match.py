@@ -26,9 +26,7 @@ DS_MATCH_GATE_EXPRESSION = """={{ (() => {
   const norm = (value) => String(value || '').trim().toLowerCase();
   const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(norm(value));
   const user = norm(base.user || queryContext.user || alert.user);
-  if (user) return looksSystemAccount(user);
-  return [base.executor, base.account, base.dbUser, queryContext.executor, queryContext.account, queryContext.dbUser, alert.executor]
-    .some((value) => looksSystemAccount(value));
+  return looksSystemAccount(user);
 })() }}"""
 
 
@@ -53,9 +51,7 @@ function shouldMatchDsForAccount(row) {
   const queryContext = evidence.queryContext || {};
   const alert = evidence.alert || {};
   const user = String(row.user || queryContext.user || alert.user || '').trim().toLowerCase();
-  if (user) return looksSystemAccount(user);
-  return [row.executor, row.account, row.dbUser, queryContext.executor, queryContext.account, queryContext.dbUser, alert.executor]
-    .some((value) => looksSystemAccount(value));
+  return looksSystemAccount(user);
 }
 
 if (!shouldMatchDsForAccount(base)) {
@@ -298,7 +294,47 @@ def connect_if(workflow: dict, source: str, true_target: str, false_target: str)
     }
 
 
+def force_user_only_ds_account_check(js_code: str) -> str:
+    """Remove legacy executor/account fallbacks from DS-match account checks."""
+    legacy_helper_patterns = [
+        (
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n",
+            "  return looksSystemAccount(userValue);\n",
+        ),
+        (
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));",
+            "  return looksSystemAccount(userValue);",
+        ),
+        (
+            "  if (userValue) return looks(userValue);\n"
+            "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looks(value));\n",
+            "  return looks(userValue);\n",
+        ),
+        (
+            "  if (userValue) return looks(userValue);\n"
+            "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looks(value));",
+            "  return looks(userValue);",
+        ),
+        (
+            "  if (user) return looksSystemAccount(user);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContext.executor, queryContext.account, queryContext.dbUser, alert.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n",
+            "  return looksSystemAccount(user);\n",
+        ),
+    ]
+    for old, new in legacy_helper_patterns:
+        js_code = js_code.replace(old, new)
+    return js_code
+
+
 def patch_sidecar_message(js_code: str) -> str:
+    js_code = force_user_only_ds_account_check(js_code)
     if "safeNodeJson('Merge DS Task Match')" not in js_code:
         js_code = js_code.replace(
             "const base = $('Build Langfuse Batch').first().json || {};",
@@ -325,9 +361,7 @@ def patch_sidecar_message(js_code: str) -> str:
             "  const queryContextObj = evidenceObj.queryContext || {};\n"
             "  const alertObj = evidenceObj.alert || {};\n"
             "  const userValue = sanitize(row.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
-            "  if (userValue) return looksSystemAccount(userValue);\n"
-            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-            "    .some((value) => looksSystemAccount(value));\n"
+            "  return looksSystemAccount(userValue);\n"
             "};",
         )
     js_code = js_code.replace(
@@ -342,9 +376,7 @@ def patch_sidecar_message(js_code: str) -> str:
         "  const alertObj = evidenceObj.alert || {};\n"
         "  const looks = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
         "  const userValue = sanitize(base.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
-        "  if (userValue) return looks(userValue);\n"
-        "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-        "    .some((value) => looks(value));\n"
+        "  return looks(userValue);\n"
         "})()) {\n"
         "  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n"
         "}",
@@ -357,9 +389,7 @@ def patch_sidecar_message(js_code: str) -> str:
         "  const alertObj = evidenceObj.alert || {};\n"
         "  const looks = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
         "  const userValue = sanitize(base.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
-        "  if (userValue) return looks(userValue);\n"
-        "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-        "    .some((value) => looks(value));\n"
+        "  return looks(userValue);\n"
         "})()) {\n"
         "  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n"
         "}",
@@ -382,9 +412,7 @@ def patch_sidecar_message(js_code: str) -> str:
             "  const queryContextObj = evidenceObj.queryContext || {};\n"
             "  const alertObj = evidenceObj.alert || {};\n"
             "  const userValue = sanitize(row.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
-            "  if (userValue) return looksSystemAccount(userValue);\n"
-            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-            "    .some((value) => looksSystemAccount(value));\n"
+            "  return looksSystemAccount(userValue);\n"
             "};\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
             "  && shouldMatchDsForAccount(base)\n"
@@ -427,11 +455,12 @@ def patch_sidecar_message(js_code: str) -> str:
     )
     marker = "  + '告警原因：\\n'\n"
     if "SQL 所属 DS 任务" in js_code or "DS 匹配信息" in js_code:
-        return js_code
-    return js_code.replace(marker, insert + marker)
+        return force_user_only_ds_account_check(js_code)
+    return force_user_only_ds_account_check(js_code.replace(marker, insert + marker))
 
 
 def patch_webhook_response(js_code: str) -> str:
+    js_code = force_user_only_ds_account_check(js_code)
     js_code = js_code.replace(
         "const base = $('Build Langfuse Batch').first().json || {};\nconst notify = $json || {};",
         "const safeNodeJson = (nodeName) => {\n"
@@ -459,9 +488,7 @@ def patch_webhook_response(js_code: str) -> str:
             "  const queryContextObj = evidenceObj.queryContext || {};\n"
             "  const alertObj = evidenceObj.alert || {};\n"
             "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
-            "  if (userValue) return looksSystemAccount(userValue);\n"
-            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-            "    .some((value) => looksSystemAccount(value));\n"
+            "  return looksSystemAccount(userValue);\n"
             "};",
         )
     js_code = js_code.replace(
@@ -478,9 +505,7 @@ def patch_webhook_response(js_code: str) -> str:
             "  const queryContextObj = evidenceObj.queryContext || {};\n"
             "  const alertObj = evidenceObj.alert || {};\n"
             "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
-            "  if (userValue) return looksSystemAccount(userValue);\n"
-            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-            "    .some((value) => looksSystemAccount(value));\n"
+            "  return looksSystemAccount(userValue);\n"
             "};\n"
             "const dsInfoText = base.dsTaskMatchOk ? ('SQL 所属 DS 任务：\\n'\n"
             "  + (textOf(base.dsCountryName) ? textOf(base.dsCountryName) + ' DS 调度' : 'DS 调度')\n"
@@ -502,9 +527,7 @@ def patch_webhook_response(js_code: str) -> str:
             "  const queryContextObj = evidenceObj.queryContext || {};\n"
             "  const alertObj = evidenceObj.alert || {};\n"
             "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
-            "  if (userValue) return looksSystemAccount(userValue);\n"
-            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
-            "    .some((value) => looksSystemAccount(value));\n"
+            "  return looksSystemAccount(userValue);\n"
             "};\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
             "  && shouldMatchDsForAccount(base)\n"
@@ -550,7 +573,7 @@ def patch_webhook_response(js_code: str) -> str:
             "    dsTaskMatchConfidence: textOf(base.dsTaskMatchConfidence),\n"
             "    dsTaskMatchTables: base.dsTaskMatchTables || [],",
         )
-    return js_code
+    return force_user_only_ds_account_check(js_code)
 
 
 def main() -> None:
@@ -576,7 +599,7 @@ def main() -> None:
         "typeVersion": 2.2,
         "position": [45888, 13808],
         "notesInFlow": True,
-        "notes": "提前过滤个人账号：只有 user/executor/account/dbUser 等字段存在类似 u_、e_、e_ds_ 这类前缀时才进入 DS 匹配。像 jiangchuanchen 这种无前缀个人账号默认不是 DS 调度，直接跳过 DS 查询，避免误匹配和无意义查询。",
+        "notes": "提前过滤个人账号：只按 user 字段判断是否进入 DS 匹配。像 jiangchuanchen、apriljiang 这种无系统账号前缀的个人账号默认不是 DS 调度，直接跳过 DS 查询，避免被 executor 等字段误伤。",
     }
     match_node = {
         "parameters": {
