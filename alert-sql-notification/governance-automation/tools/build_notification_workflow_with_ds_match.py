@@ -23,22 +23,12 @@ DS_MATCH_GATE_EXPRESSION = """={{ (() => {
   const evidence = base.evidence || {};
   const queryContext = evidence.queryContext || {};
   const alert = evidence.alert || {};
-  const values = [
-    base.user,
-    base.executor,
-    base.account,
-    base.dbUser,
-    queryContext.user,
-    queryContext.executor,
-    queryContext.account,
-    queryContext.dbUser,
-    alert.user,
-    alert.executor
-  ];
-  return values
-    .map((value) => String(value || '').trim().toLowerCase())
-    .filter(Boolean)
-    .some((value) => /^[a-z]+_/.test(value));
+  const norm = (value) => String(value || '').trim().toLowerCase();
+  const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(norm(value));
+  const user = norm(base.user || queryContext.user || alert.user);
+  if (user) return looksSystemAccount(user);
+  return [base.executor, base.account, base.dbUser, queryContext.executor, queryContext.account, queryContext.dbUser, alert.executor]
+    .some((value) => looksSystemAccount(value));
 })() }}"""
 
 
@@ -53,6 +43,32 @@ DS_MATCH_JS = r"""const safeFirst = (nodeName) => {
 
 const base = safeFirst('Execute Skill Prep') || {};
 const inputRows = $input.all().map((item) => item.json || {}).filter((row) => row && Object.keys(row).length > 0);
+
+function looksSystemAccount(value) {
+  return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(String(value || '').trim().toLowerCase());
+}
+
+function shouldMatchDsForAccount(row) {
+  const evidence = row.evidence || {};
+  const queryContext = evidence.queryContext || {};
+  const alert = evidence.alert || {};
+  const user = String(row.user || queryContext.user || alert.user || '').trim().toLowerCase();
+  if (user) return looksSystemAccount(user);
+  return [row.executor, row.account, row.dbUser, queryContext.executor, queryContext.account, queryContext.dbUser, alert.executor]
+    .some((value) => looksSystemAccount(value));
+}
+
+if (!shouldMatchDsForAccount(base)) {
+  return [{ json: {
+    ...base,
+    dsTaskMatchOk: false,
+    dsTaskMatchRequired: false,
+    dsTaskMatchMissingNeedsRecord: false,
+    dsTaskMissingNotice: '',
+    dsTaskMatchInfo: 'skip-personal-account',
+    dsTaskCandidateCount: 0,
+  }}];
+}
 
 const DROP_PREFIX_RE = /^\s*drop\s+table\s+(?:if\s+exists\s+)?[`"]?[\w.]+\s*;\s*/i;
 const ACTION_RE = /\b(create|insert|update|delete|replace|alter|drop|truncate)\b/i;
@@ -299,6 +315,55 @@ def patch_sidecar_message(js_code: str) -> str:
             "  ...safeNodeJson('Merge DS Task Match'),\n"
             "};",
         )
+    if "const looksSystemAccount = (value)" not in js_code:
+        js_code = js_code.replace(
+            "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);",
+            "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);\n"
+            "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
+            "const shouldMatchDsForAccount = (row) => {\n"
+            "  const evidenceObj = row.evidence || {};\n"
+            "  const queryContextObj = evidenceObj.queryContext || {};\n"
+            "  const alertObj = evidenceObj.alert || {};\n"
+            "  const userValue = sanitize(row.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n"
+            "};",
+        )
+    js_code = js_code.replace(
+        "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n  ?",
+        "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n  && shouldMatchDsForAccount(base)\n  ?",
+    )
+    js_code = js_code.replace(
+        "if (base.dsTaskMatchMissingNeedsRecord) {\n  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n}",
+        "if (base.dsTaskMatchMissingNeedsRecord && (() => {\n"
+        "  const evidenceObj = base.evidence || {};\n"
+        "  const queryContextObj = evidenceObj.queryContext || {};\n"
+        "  const alertObj = evidenceObj.alert || {};\n"
+        "  const looks = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
+        "  const userValue = sanitize(base.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
+        "  if (userValue) return looks(userValue);\n"
+        "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+        "    .some((value) => looks(value));\n"
+        "})()) {\n"
+        "  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n"
+        "}",
+    )
+    js_code = js_code.replace(
+        "if (base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base)) {\n  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n}",
+        "if (base.dsTaskMatchMissingNeedsRecord && (() => {\n"
+        "  const evidenceObj = base.evidence || {};\n"
+        "  const queryContextObj = evidenceObj.queryContext || {};\n"
+        "  const alertObj = evidenceObj.alert || {};\n"
+        "  const looks = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
+        "  const userValue = sanitize(base.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
+        "  if (userValue) return looks(userValue);\n"
+        "  return [base.executor, base.account, base.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+        "    .some((value) => looks(value));\n"
+        "})()) {\n"
+        "  notifyEmails = uniq([...notifyEmails, notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group']);\n"
+        "}",
+    )
     if "dsMissingCcEmail" not in js_code:
         js_code = js_code.replace(
             "const notifyEmails = uniq(Array.isArray(base.notifyEmails) && base.notifyEmails.length ? base.notifyEmails : [base.notifyEmail || 'jiangchuanchen@kn.group']);",
@@ -311,7 +376,18 @@ def patch_sidecar_message(js_code: str) -> str:
         js_code = js_code.replace(
             "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);",
             "const countryOwnerFallbackNotice = sanitize(base.countryOwnerFallbackNotice);\n"
+            "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());\n"
+            "const shouldMatchDsForAccount = (row) => {\n"
+            "  const evidenceObj = row.evidence || {};\n"
+            "  const queryContextObj = evidenceObj.queryContext || {};\n"
+            "  const alertObj = evidenceObj.alert || {};\n"
+            "  const userValue = sanitize(row.user || queryContextObj.user || alertObj.user).toLowerCase();\n"
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n"
+            "};\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  && shouldMatchDsForAccount(base)\n"
             "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';",
         )
@@ -325,7 +401,7 @@ def patch_sidecar_message(js_code: str) -> str:
             "      notifyEmail: notifyEmails.join(','),\n"
             "      notifyEmails,\n"
             "      dsTaskMatchRequired: !!base.dsTaskMatchRequired,\n"
-            "      dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,\n"
+            "      dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base),\n"
             "      dsTaskMissingNotice: sanitize(base.dsTaskMissingNotice),\n"
             "      sidecarShouldSend:",
         )
@@ -334,10 +410,14 @@ def patch_sidecar_message(js_code: str) -> str:
             "    notifyEmail: entry.email,\n"
             "    notifyEmails,\n"
             "    dsTaskMatchRequired: !!base.dsTaskMatchRequired,\n"
-            "    dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,\n"
+            "    dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base),\n"
             "    dsTaskMissingNotice: sanitize(base.dsTaskMissingNotice),\n"
             "    sidecarShouldSend:",
         )
+    js_code = js_code.replace(
+        "dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,",
+        "dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base),",
+    )
     insert = (
         "  + (base.dsTaskMatchOk ? 'SQL 所属 DS 任务：\\n'"
         " + (sanitize(base.dsCountryName) ? sanitize(base.dsCountryName) + ' DS 调度' : 'DS 调度')"
@@ -367,18 +447,48 @@ def patch_webhook_response(js_code: str) -> str:
         "  ...safeNodeJson('Build Langfuse Batch'),\n"
         "  ...safeNodeJson('Merge DS Task Match'),\n"
         "  ...safeNodeJson('Build Sidecar Payload'),\n"
-        "};",
+            "};",
+    )
+    if "const looksSystemAccount = (value)" not in js_code:
+        js_code = js_code.replace(
+            "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();",
+            "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();\n"
+            "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(textOf(value).trim().toLowerCase());\n"
+            "const shouldMatchDsForAccount = (row) => {\n"
+            "  const evidenceObj = row.evidence || {};\n"
+            "  const queryContextObj = evidenceObj.queryContext || {};\n"
+            "  const alertObj = evidenceObj.alert || {};\n"
+            "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n"
+            "};",
+        )
+    js_code = js_code.replace(
+        "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n  ?",
+        "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n  && shouldMatchDsForAccount(base)\n  ?",
     )
     if "const dsInfoText" not in js_code:
         js_code = js_code.replace(
             "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();",
             "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();\n"
+            "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(textOf(value).trim().toLowerCase());\n"
+            "const shouldMatchDsForAccount = (row) => {\n"
+            "  const evidenceObj = row.evidence || {};\n"
+            "  const queryContextObj = evidenceObj.queryContext || {};\n"
+            "  const alertObj = evidenceObj.alert || {};\n"
+            "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n"
+            "};\n"
             "const dsInfoText = base.dsTaskMatchOk ? ('SQL 所属 DS 任务：\\n'\n"
             "  + (textOf(base.dsCountryName) ? textOf(base.dsCountryName) + ' DS 调度' : 'DS 调度')\n"
             "  + '「' + textOf(base.dsProject) + '」-「' + textOf(base.dsWorkflow) + '」-「' + textOf(base.dsTask) + '」任务\\n'\n"
             "  + '- 负责人：' + textOf(base.dsWorkflowOwner) + '\\n'\n"
             "  + '- 创建人：' + textOf(base.dsTaskCreator) + '\\n\\n') : '';\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  && shouldMatchDsForAccount(base)\n"
             "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';",
         )
@@ -386,7 +496,18 @@ def patch_webhook_response(js_code: str) -> str:
     elif "dsMissingNoticeText" not in js_code:
         js_code = js_code.replace(
             "const backendSuggestionText = '异常查询：\\n'",
+            "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(textOf(value).trim().toLowerCase());\n"
+            "const shouldMatchDsForAccount = (row) => {\n"
+            "  const evidenceObj = row.evidence || {};\n"
+            "  const queryContextObj = evidenceObj.queryContext || {};\n"
+            "  const alertObj = evidenceObj.alert || {};\n"
+            "  const userValue = textOf(row.user || queryContextObj.user || alertObj.user).trim().toLowerCase();\n"
+            "  if (userValue) return looksSystemAccount(userValue);\n"
+            "  return [row.executor, row.account, row.dbUser, queryContextObj.executor, queryContextObj.account, queryContextObj.dbUser, alertObj.executor]\n"
+            "    .some((value) => looksSystemAccount(value));\n"
+            "};\n"
             "const dsMissingNoticeText = base.dsTaskMatchMissingNeedsRecord\n"
+            "  && shouldMatchDsForAccount(base)\n"
             "  ? 'DS 归属缺失提醒：\\n当前账号属于系统/部门/调度账号，但未匹配到对应 DS 项目 / 工作流 / 任务。需要人工确认其执行位置，如果有时间可以将执行位置发送给陈江川，本次已同步发送给江川协助跟进。\\n\\n'\n"
             "  : '';\n"
             "const backendSuggestionText = '异常查询：\\n'",
