@@ -16,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+from datetime import datetime, timedelta
 from dataclasses import dataclass
 from typing import Any
 
@@ -132,6 +133,44 @@ LIMIT {limit}
 """.strip()
 
 
+DS_TASK_INSTANCE_SQL_TEMPLATE = r"""
+SELECT
+  ti.id AS task_instance_id,
+  p.name AS project_name,
+  '' AS project_owner,
+  '' AS workflow_code,
+  '' AS workflow_version,
+  wi.name AS workflow_name,
+  '' AS workflow_release_state,
+  '' AS workflow_owner,
+  ti.task_code AS task_code,
+  ti.task_definition_version AS task_version,
+  ti.name AS task_name,
+  ti.task_type AS task_type,
+  '' AS task_flag,
+  '' AS task_creator,
+  '' AS script_content,
+  '' AS sql_content,
+  ti.state AS instance_state,
+  ti.submit_time AS instance_submit_time,
+  ti.start_time AS instance_start_time,
+  ti.end_time AS instance_end_time,
+  ti.host AS instance_host,
+  ti.log_path AS instance_log_path
+FROM t_ds_task_instance ti
+LEFT JOIN t_ds_workflow_instance wi
+  ON ti.workflow_instance_id = wi.id
+LEFT JOIN t_ds_project p
+  ON wi.project_code = p.code
+WHERE ti.start_time >= {start_time}
+  AND ti.start_time <= {end_time}
+  AND ti.task_type IN ('SHELL', 'SQL')
+  {instance_filter_sql}
+ORDER BY ti.start_time DESC
+LIMIT {limit}
+""".strip()
+
+
 TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 ACTION_RE = re.compile(r"\b(create|insert|update|delete|replace|alter|drop|truncate)\b", re.I)
 CTE_RE = re.compile(r"(?:\bwith|,)\s+([a-zA-Z_][\w]*)\s+as\s*\(", re.I)
@@ -139,6 +178,28 @@ INSERT_TARGET_RE = re.compile(r"\binsert\s+(?:overwrite\s+)?(?:into\s+)?(?:table
 CREATE_TARGET_RE = re.compile(r"\bcreate\s+(?:table\s+)?(?:if\s+not\s+exists\s+)?([`\"]?[a-zA-Z_][\w.]*)", re.I)
 UPDATE_TARGET_RE = re.compile(r"\bupdate\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
+TEMP_TARGET_PREFIXES = ("tmp", "dm_tmp", "test", "temp", "sandbox")
+LAYER_PREFIXES = {
+    "ods",
+    "dwd",
+    "dwb",
+    "dws",
+    "dwt",
+    "dm",
+    "dim",
+    "ads",
+    "hive",
+    "paimon",
+    "default",
+    "catalog",
+    "r",
+    "c",
+    "w",
+    "m",
+    "m1",
+    "m2",
+    "app",
+}
 
 
 @dataclass(frozen=True)
@@ -307,7 +368,7 @@ def discover_wattrel_connection(args: argparse.Namespace) -> MysqlConnection | N
     return MysqlConnection(host=host, port=port, database=database, user=user, password=password)
 
 
-def query_mysql_rows(connection: MysqlConnection, sql: str) -> list[dict[str, str]]:
+def query_mysql_rows(connection: MysqlConnection, sql: str, timeout: int = 180) -> list[dict[str, str]]:
     env = os.environ.copy()
     env["MYSQL_PWD"] = connection.password
     raw = run_command(
@@ -324,10 +385,28 @@ def query_mysql_rows(connection: MysqlConnection, sql: str) -> list[dict[str, st
             sql,
         ],
         env=env,
-        timeout=180,
+        timeout=timeout,
     )
     reader = csv.DictReader(raw.splitlines(), delimiter="\t")
     return [dict(row) for row in reader]
+
+
+def quote_sql_literal(value: str) -> str:
+    return "'" + str(value or "").replace("\\", "\\\\").replace("'", "''") + "'"
+
+
+def parse_datetime(value: str) -> datetime | None:
+    text = str(value or "").strip()
+    if not text:
+        return None
+    text = text.replace("T", " ").replace("Z", "")
+    text = re.sub(r"\.\d+", "", text)
+    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+        try:
+            return datetime.strptime(text[: len(fmt)], fmt)
+        except ValueError:
+            continue
+    return None
 
 
 def decode_base64_text(value: str) -> str:
@@ -401,6 +480,55 @@ def table_leaf(table: str) -> str:
 
 def normalize_name_token(value: str) -> str:
     return re.sub(r"[^a-z0-9]+", "_", str(value or "").lower()).strip("_")
+
+
+def semantic_table_keywords(table: str) -> list[str]:
+    leaf = table_leaf(str(table or "").lower())
+    token = normalize_name_token(leaf)
+    if not token:
+        return []
+    keywords = [token]
+    parts = [part for part in token.split("_") if part and part not in LAYER_PREFIXES]
+    # Build useful suffixes such as ask_loan_result from dwb_r_ask_loan_result.
+    for index in range(len(parts)):
+        suffix = "_".join(parts[index:])
+        if len(suffix) >= 5 and suffix not in keywords:
+            keywords.append(suffix)
+    return keywords[:4]
+
+
+def is_temporary_target(table: str) -> bool:
+    value = str(table or "").lower()
+    if not value:
+        return False
+    parts = value.split(".")
+    db = parts[-2] if len(parts) >= 2 else ""
+    leaf = parts[-1]
+    if db in TEMP_TARGET_PREFIXES or any(prefix in db for prefix in ("tmp", "temp", "test", "sandbox")):
+        return True
+    if any(token in leaf for token in ("tmp", "temp", "test", "sandbox")):
+        return True
+    return bool(re.search(r"(?:^|_)(okr|exp|experiment|sample|adhoc|phi|sd|20\d{2}|\d{4}|\d+d)(?:_|$)", leaf))
+
+
+def build_match_terms(source_sql: str, max_terms: int = 12) -> list[str]:
+    terms: list[str] = []
+    for table in extract_target_tables(source_sql) + extract_sql_tables(source_sql):
+        for term in [table, table_leaf(table), *semantic_table_keywords(table)]:
+            normalized = str(term or "").lower().strip()
+            if normalized and len(normalized) >= 4 and normalized not in terms:
+                terms.append(normalized)
+    return terms[:max_terms]
+
+
+def build_match_terms_from_tables(tables: list[str], max_terms: int = 12) -> list[str]:
+    terms: list[str] = []
+    for table in tables:
+        for term in [table, table_leaf(table), *semantic_table_keywords(table)]:
+            normalized = str(term or "").lower().strip()
+            if normalized and len(normalized) >= 4 and normalized not in terms:
+                terms.append(normalized)
+    return terms[:max_terms]
 
 
 def target_task_name_matches(targets: list[str], task_name: str) -> bool:
@@ -627,6 +755,181 @@ def build_script_filter_sql(source_sql: str, max_terms: int = 12) -> tuple[str, 
     return "AND (" + "\n    OR ".join(like_parts) + ")", terms
 
 
+def build_instance_filter_sql(source_sql: str, max_terms: int = 10) -> tuple[str, list[str]]:
+    terms = build_match_terms(source_sql, max_terms=max_terms)
+    if not terms:
+        return "", []
+    like_parts = []
+    for term in terms:
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
+        like_parts.extend(
+            [
+                f"LOWER(ti.name) LIKE '%{escaped}%' ESCAPE '\\\\'",
+                f"LOWER(wi.name) LIKE '%{escaped}%' ESCAPE '\\\\'",
+                f"LOWER(p.name) LIKE '%{escaped}%' ESCAPE '\\\\'",
+                f"LOWER(ti.log_path) LIKE '%{escaped}%' ESCAPE '\\\\'",
+            ]
+        )
+    return "AND (" + "\n    OR ".join(like_parts) + ")", terms
+
+
+def tail_file_text(path: str, max_bytes: int) -> str:
+    if not path or not os.path.isfile(path):
+        return ""
+    try:
+        with open(path, "rb") as handle:
+            handle.seek(0, os.SEEK_END)
+            size = handle.tell()
+            handle.seek(max(0, size - max_bytes))
+            return handle.read(max_bytes).decode("utf-8", errors="ignore").lower()
+    except OSError:
+        return ""
+
+
+def count_text_hits(text: str, terms: list[str]) -> tuple[int, list[str]]:
+    lower = str(text or "").lower()
+    hits: list[str] = []
+    for term in terms:
+        if term and term.lower() in lower and term not in hits:
+            hits.append(term)
+    return len(hits), hits
+
+
+def score_instance_matches(
+    source_sql: str,
+    rows: list[dict[str, str]],
+    *,
+    log_limit: int = 5,
+    log_tail_bytes: int = 200_000,
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    source_targets = extract_target_tables(source_sql)
+    source_tables = extract_sql_tables(source_sql)
+    temporary_target = any(is_temporary_target(table) for table in source_targets)
+    target_terms = build_match_terms_from_tables(source_targets, max_terms=6)
+    source_terms = build_match_terms_from_tables(source_tables, max_terms=20)
+    all_terms = []
+    for term in target_terms + source_terms:
+        if term not in all_terms:
+            all_terms.append(term)
+
+    scored: list[tuple[int, dict[str, str], dict[str, Any]]] = []
+    for index, row in enumerate(rows):
+        identity_text = " ".join(
+            [
+                str(row.get("project_name", "")),
+                str(row.get("workflow_name", "")),
+                str(row.get("task_name", "")),
+                str(row.get("instance_log_path", "")),
+            ]
+        ).lower()
+        name_hit_count, name_hits = count_text_hits(identity_text, all_terms)
+        target_name_hit_count, target_name_hits = count_text_hits(identity_text, target_terms)
+        log_hit_count = 0
+        log_hits: list[str] = []
+        target_log_hit_count = 0
+        target_log_hits: list[str] = []
+        log_checked = False
+        if index < max(0, log_limit):
+            log_text = tail_file_text(str(row.get("instance_log_path", "")), log_tail_bytes)
+            log_checked = bool(log_text)
+            log_hit_count, log_hits = count_text_hits(log_text, all_terms)
+            target_log_hit_count, target_log_hits = count_text_hits(log_text, target_terms)
+
+        score = (
+            target_log_hit_count * 3000
+            + log_hit_count * 700
+            + target_name_hit_count * 1200
+            + name_hit_count * 350
+        )
+        confidence = "low"
+        if target_log_hit_count or log_hit_count >= 3:
+            confidence = "high"
+        elif log_hit_count >= 2 or target_name_hit_count:
+            confidence = "medium"
+        elif temporary_target and name_hit_count:
+            # Temporary targets rarely appear in DS metadata. A source-table keyword
+            # hit in a recent task instance is useful, but only medium confidence.
+            confidence = "medium"
+
+        info = {
+            "score": score,
+            "confidence": confidence,
+            "temporary_target": temporary_target,
+            "name_hits": name_hits,
+            "target_name_hits": target_name_hits,
+            "log_checked": log_checked,
+            "log_hits": log_hits,
+            "target_log_hits": target_log_hits,
+        }
+        if score > 0:
+            scored.append((score, row, info))
+
+    scored.sort(key=lambda item: item[0], reverse=True)
+    accepted: list[dict[str, str]] = []
+    candidates_preview: list[dict[str, Any]] = []
+    for score, row, info in scored[:5]:
+        preview = {
+            "project_name": row.get("project_name", ""),
+            "workflow_name": row.get("workflow_name", ""),
+            "task_name": row.get("task_name", ""),
+            "task_type": row.get("task_type", ""),
+            "instance_start_time": row.get("instance_start_time", ""),
+            "instance_log_path": row.get("instance_log_path", ""),
+            **info,
+        }
+        candidates_preview.append(preview)
+        if info["confidence"] in {"high", "medium"} and not accepted:
+            matched = dict(row)
+            matched["ds_match_remote_info"] = (
+                "instance_log_or_name("
+                f"score={score},confidence={info['confidence']},"
+                f"nameHits={len(info['name_hits'])},logHits={len(info['log_hits'])})"
+            )
+            matched["ds_match_confidence"] = str(info["confidence"])
+            matched["script_content"] = matched.get("script_content") or matched.get("instance_log_path", "")
+            matched["sql_content"] = matched.get("sql_content") or ""
+            accepted.append(matched)
+
+    meta = {
+        "instance_match_checked": True,
+        "instance_raw_candidate_count": len(rows),
+        "instance_match_candidates": candidates_preview,
+        "temporary_target_mode": temporary_target,
+        "match_info": accepted[0]["ds_match_remote_info"] if accepted else "no-match",
+        "confidence": accepted[0]["ds_match_confidence"] if accepted else "",
+    }
+    return accepted, meta
+
+
+def query_recent_instances(
+    connection: MysqlConnection,
+    source_sql: str,
+    *,
+    alert_time: str = "",
+    before_minutes: int = 60,
+    after_minutes: int = 10,
+    limit: int = 20,
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    center = parse_datetime(alert_time) or datetime.now()
+    start_time = center - timedelta(minutes=max(1, before_minutes))
+    end_time = center + timedelta(minutes=max(1, after_minutes))
+    instance_filter_sql, filter_terms = build_instance_filter_sql(source_sql)
+    sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
+        start_time=quote_sql_literal(start_time.strftime("%Y-%m-%d %H:%M:%S")),
+        end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
+        instance_filter_sql=instance_filter_sql,
+        limit=max(1, int(limit)),
+    )
+    rows = query_mysql_rows(connection, sql, timeout=20)
+    meta = {
+        "instance_time_center": center.strftime("%Y-%m-%d %H:%M:%S"),
+        "instance_time_start": start_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "instance_time_end": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "instance_filter_terms": filter_terms,
+    }
+    return rows, meta
+
+
 def success_response(
     country: str,
     pid: str,
@@ -681,6 +984,12 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--country", default="", help="Country code: cn, ine, mx, ph, pk, th.")
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
+    parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
+    parser.add_argument("--instance-limit", type=int, default=20, help="Max recent task instances to inspect after definition no-match.")
+    parser.add_argument("--instance-before-minutes", type=int, default=60, help="Minutes before alert time for task instance fallback.")
+    parser.add_argument("--instance-after-minutes", type=int, default=10, help="Minutes after alert time for task instance fallback.")
+    parser.add_argument("--log-limit", type=int, default=5, help="Max candidate instance logs to read locally.")
+    parser.add_argument("--log-tail-bytes", type=int, default=200000, help="Max tail bytes read from each local task log.")
     parser.add_argument("--sql-text-b64", default="", help="Base64-encoded abnormal SQL text for DB-side filtering.")
     parser.add_argument("--ds-db-host", default="", help="Optional DS metadata MySQL host override.")
     parser.add_argument("--ds-db-port", default="", help="Optional DS metadata MySQL port override.")
@@ -721,6 +1030,38 @@ def main() -> None:
         )
         rows = query_mysql_rows(connection, sql)
         rows, match_meta = pick_best_match(source_sql, rows) if source_sql else (rows[:1], {})
+        if source_sql and not rows:
+            try:
+                instance_rows, instance_query_meta = query_recent_instances(
+                    connection,
+                    source_sql,
+                    alert_time=args.alert_time,
+                    before_minutes=args.instance_before_minutes,
+                    after_minutes=args.instance_after_minutes,
+                    limit=args.instance_limit,
+                )
+                instance_matches, instance_match_meta = score_instance_matches(
+                    source_sql,
+                    instance_rows,
+                    log_limit=args.log_limit,
+                    log_tail_bytes=args.log_tail_bytes,
+                )
+                match_meta = {
+                    **match_meta,
+                    **instance_query_meta,
+                    **instance_match_meta,
+                    "definition_match_info": match_meta.get("match_info", "no-match"),
+                    "match_mode": "definition_then_instance_fallback",
+                }
+                rows = instance_matches
+            except Exception as instance_error:
+                match_meta = {
+                    **match_meta,
+                    "instance_match_checked": True,
+                    "instance_match_error": str(instance_error),
+                    "definition_match_info": match_meta.get("match_info", "no-match"),
+                    "match_mode": "definition_then_instance_fallback",
+                }
         print(
             json.dumps(
                 success_response(country, pid, connection, rows, wattrel_connection, filter_tables, match_meta),

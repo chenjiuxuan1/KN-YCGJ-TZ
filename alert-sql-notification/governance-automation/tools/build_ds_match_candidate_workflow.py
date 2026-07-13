@@ -287,7 +287,7 @@ def remote_command(template: str, country: str) -> str:
     inner = f"""{candidate_query_command()}
 {exports}
 
-python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}'
+python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}' --alert-time '{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}'
 """
     return template.replace(
         "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "
