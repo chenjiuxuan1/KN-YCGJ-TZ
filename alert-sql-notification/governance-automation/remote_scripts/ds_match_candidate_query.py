@@ -179,6 +179,18 @@ CREATE_TARGET_RE = re.compile(r"\bcreate\s+(?:table\s+)?(?:if\s+not\s+exists\s+)
 UPDATE_TARGET_RE = re.compile(r"\bupdate\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 TEMP_TARGET_PREFIXES = ("tmp", "dm_tmp", "test", "temp", "sandbox")
+QUALITY_TASK_KEYWORDS = (
+    "数据质量",
+    "质量校验",
+    "数据校验",
+    "校验",
+    "check",
+    "quality",
+    "validate",
+    "validation",
+    "audit",
+)
+WRITE_ACTIONS = {"create", "insert", "update", "delete", "replace", "alter", "drop", "truncate"}
 LAYER_PREFIXES = {
     "ods",
     "dwd",
@@ -795,9 +807,38 @@ def count_text_hits(text: str, terms: list[str]) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
+def is_quality_check_task(row: dict[str, str]) -> bool:
+    text = " ".join(
+        [
+            str(row.get("project_name", "")),
+            str(row.get("workflow_name", "")),
+            str(row.get("task_name", "")),
+        ]
+    ).lower()
+    return any(keyword.lower() in text for keyword in QUALITY_TASK_KEYWORDS)
+
+
+def action_appears_in_text(action: str, text: str) -> bool:
+    action_value = str(action or "").lower()
+    if not action_value:
+        return False
+    normalized = normalize_sql_text(text)
+    if not normalized:
+        return False
+    if action_value == "insert":
+        return bool(re.search(r"\binsert\s+(?:overwrite\s+)?(?:into\s+)?", normalized))
+    if action_value == "create":
+        return bool(re.search(r"\bcreate\s+(?:table\s+)?", normalized))
+    return bool(re.search(rf"\b{re.escape(action_value)}\b", normalized))
+
+
 def classify_instance_confidence(
     *,
+    source_action: str,
+    source_is_write: bool,
     temporary_target: bool,
+    quality_check_task: bool,
+    action_in_log: bool,
     target_name_hit_count: int,
     target_log_hit_count: int,
     log_hit_count: int,
@@ -809,11 +850,15 @@ def classify_instance_confidence(
     tasks in the same window often read the same source tables, so source-table
     overlap alone must not become a displayed DS ownership result.
     """
-    if target_log_hit_count:
+    if source_is_write and quality_check_task and not action_in_log:
+        return "low"
+    if source_is_write and log_checked and target_log_hit_count and not action_in_log:
+        return "low"
+    if target_log_hit_count and (not source_is_write or action_in_log):
         return "high"
     if target_name_hit_count:
         return "high"
-    if log_checked and log_hit_count >= 3:
+    if log_checked and log_hit_count >= 3 and (not source_is_write or action_in_log):
         return "medium" if temporary_target else "high"
     return "low"
 
@@ -825,6 +870,8 @@ def score_instance_matches(
     log_limit: int = 5,
     log_tail_bytes: int = 200_000,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
+    source_action, _ = extract_action_tables(source_sql)
+    source_is_write = source_action in WRITE_ACTIONS
     source_targets = extract_target_tables(source_sql)
     source_tables = extract_sql_tables(source_sql)
     temporary_target = any(is_temporary_target(table) for table in source_targets)
@@ -851,13 +898,16 @@ def score_instance_matches(
         log_hits: list[str] = []
         target_log_hit_count = 0
         target_log_hits: list[str] = []
+        action_in_log = False
         log_checked = False
         if index < max(0, log_limit):
             log_text = tail_file_text(str(row.get("instance_log_path", "")), log_tail_bytes)
             log_checked = bool(log_text)
             log_hit_count, log_hits = count_text_hits(log_text, all_terms)
             target_log_hit_count, target_log_hits = count_text_hits(log_text, target_terms)
+            action_in_log = action_appears_in_text(source_action, log_text)
 
+        quality_check_task = is_quality_check_task(row)
         score = (
             target_log_hit_count * 3000
             + log_hit_count * 700
@@ -865,7 +915,11 @@ def score_instance_matches(
             + name_hit_count * 350
         )
         confidence = classify_instance_confidence(
+            source_action=source_action,
+            source_is_write=source_is_write,
             temporary_target=temporary_target,
+            quality_check_task=quality_check_task,
+            action_in_log=action_in_log,
             target_name_hit_count=target_name_hit_count,
             target_log_hit_count=target_log_hit_count,
             log_hit_count=log_hit_count,
@@ -878,6 +932,10 @@ def score_instance_matches(
             "temporary_target": temporary_target,
             "name_hits": name_hits,
             "target_name_hits": target_name_hits,
+            "quality_check_task": quality_check_task,
+            "source_action": source_action,
+            "source_is_write": source_is_write,
+            "action_in_log": action_in_log,
             "log_checked": log_checked,
             "log_hits": log_hits,
             "target_log_hits": target_log_hits,

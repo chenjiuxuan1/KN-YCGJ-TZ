@@ -169,6 +169,47 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(rows[0]["ds_match_confidence"], "high")
         self.assertTrue(meta["temporary_target_mode"])
 
+    def test_remote_ds_instance_fallback_rejects_quality_check_for_write_sql_without_write_log(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        source_sql = """
+            update dwd.dwd_asset_main
+               set etl_update_time = current_timestamp
+              from hive.dwb_paimon.dwb_r2_asset t
+             where dwd.dwd_asset_main.asset_id = t.asset_id
+        """
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
+            handle.write("select count(*) from dwd.dwd_asset_main where dt = current_date\n")
+            handle.write("select count(*) from hive.dwb_paimon.dwb_r2_asset where dt = current_date\n")
+            log_path = handle.name
+        try:
+            rows, meta = module.score_instance_matches(
+                source_sql,
+                [
+                    {
+                        "project_name": "菲律宾数仓-数据质量",
+                        "workflow_name": "每12小时校验2级表数据(D-1)",
+                        "task_name": "DWD层数据校验",
+                        "task_type": "SHELL",
+                        "instance_start_time": "2026-07-14 10:00:00",
+                        "instance_log_path": log_path,
+                    }
+                ],
+                log_limit=1,
+            )
+        finally:
+            os.unlink(log_path)
+
+        self.assertEqual(rows, [])
+        self.assertEqual(meta["match_info"], "no-match")
+        self.assertTrue(meta["instance_match_candidates"][0]["quality_check_task"])
+
     def test_sql_fingerprint_masks_literals(self):
         left = build_sql_fingerprint("select * from t where dt = '2026-07-01' and user_id = 123")
         right = build_sql_fingerprint("select * from t where dt = '2026-07-02' and user_id = 456")
