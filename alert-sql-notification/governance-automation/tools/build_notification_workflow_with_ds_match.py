@@ -96,6 +96,27 @@ if (!shouldMatchDsForAccount(base)) {
   }}];
 }
 
+const gateSkipped = inputRows.find((row) => {
+  const meta = row.meta || {};
+  const info = String(row.dsTaskMatchInfo || meta.match_info || meta.ds_host_gate_reason || '').trim();
+  return meta.ds_host_gate === 'skipped'
+    || info === 'missing-alert-host-ip'
+    || info === 'alert-host-ip-not-in-ds-allowlist';
+});
+
+if (gateSkipped) {
+  const meta = gateSkipped.meta || {};
+  return [{ json: {
+    ...base,
+    dsTaskMatchOk: false,
+    dsTaskMatchRequired: false,
+    dsTaskMatchMissingNeedsRecord: false,
+    dsTaskMissingNotice: '',
+    dsTaskMatchInfo: String(gateSkipped.dsTaskMatchInfo || meta.match_info || meta.ds_host_gate_reason || 'skip-ds-host-gate'),
+    dsTaskCandidateCount: 0,
+  }}];
+}
+
 const DROP_PREFIX_RE = /^\s*drop\s+table\s+(?:if\s+exists\s+)?[`"]?[\w.]+\s*;\s*/i;
 const ACTION_RE = /\b(create|insert|update|delete|replace|alter|drop|truncate)\b/i;
 const TABLE_RE = /\b(?:from|join|into|overwrite|update|table)\s+([`"]?[a-zA-Z_][\w.]*)/ig;

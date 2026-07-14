@@ -159,6 +159,10 @@ if (!parsed.success) {
   return [{ json: { ...parsed, data: [], candidate_count: 0 } }];
 }
 if (!rows.length) {
+  const meta = parsed.meta || {};
+  const gateSkipped = meta.ds_host_gate === 'skipped'
+    || meta.match_info === 'missing-alert-host-ip'
+    || meta.match_info === 'alert-host-ip-not-in-ds-allowlist';
   return [{ json: {
     ...parsed,
     data: [],
@@ -167,6 +171,7 @@ if (!rows.length) {
     ds_match_candidate_country: parsed.country || '',
     ds_match_candidate_count: 0,
     dsTaskMatchOk: false,
+    dsTaskMatchRequired: !gateSkipped,
     dsTaskMatchInfo: (parsed.meta && parsed.meta.match_info) || 'no-match',
   }}];
 }
