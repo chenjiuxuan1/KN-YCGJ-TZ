@@ -95,7 +95,7 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(rows[0]["task_name"], "dwt_user_behavior_base_snap")
         self.assertEqual(meta["confidence"], "high")
 
-    def test_remote_ds_instance_fallback_matches_temporary_target_by_source_keyword(self):
+    def test_remote_ds_instance_fallback_rejects_temporary_target_without_log_evidence(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
         self.assertIsNotNone(spec)
@@ -123,9 +123,50 @@ class GovernanceAutomationTests(unittest.TestCase):
             log_limit=0,
         )
 
+        self.assertEqual(rows, [])
+        self.assertEqual(meta["match_info"], "no-match")
+        self.assertTrue(meta["temporary_target_mode"])
+
+    def test_remote_ds_instance_fallback_matches_temporary_target_with_log_evidence(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        source_sql = """
+            create table dm_tmp.phi_sd_okr_1204_15d as
+            select * from hive.dwb_paimon.dwb_r_ask_loan_result r
+            join hive.dwd.dwd_w_apply a on r.ask_loan_result_user_uuid = a.user_uuid
+            join hive.dwb_paimon.dwb_r_apply_result_extend e on r.id = e.apply_result_id
+        """
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
+            handle.write("worker log start\n")
+            handle.write(source_sql)
+            log_path = handle.name
+        try:
+            rows, meta = module.score_instance_matches(
+                source_sql,
+                [
+                    {
+                        "project_name": "菲律宾数仓-正式环境",
+                        "workflow_name": "DWD_PAIMON-20260713133552354",
+                        "task_name": "dwd_app_ask_loan_result",
+                        "task_type": "SHELL",
+                        "instance_start_time": "2026-07-13 13:38:50",
+                        "instance_log_path": log_path,
+                    }
+                ],
+                log_limit=1,
+            )
+        finally:
+            os.unlink(log_path)
+
         self.assertEqual(len(rows), 1)
         self.assertEqual(rows[0]["task_name"], "dwd_app_ask_loan_result")
-        self.assertEqual(rows[0]["ds_match_confidence"], "medium")
+        self.assertEqual(rows[0]["ds_match_confidence"], "high")
         self.assertTrue(meta["temporary_target_mode"])
 
     def test_sql_fingerprint_masks_literals(self):

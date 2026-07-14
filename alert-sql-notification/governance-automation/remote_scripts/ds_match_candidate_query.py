@@ -795,6 +795,29 @@ def count_text_hits(text: str, terms: list[str]) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
+def classify_instance_confidence(
+    *,
+    temporary_target: bool,
+    target_name_hit_count: int,
+    target_log_hit_count: int,
+    log_hit_count: int,
+    log_checked: bool,
+) -> str:
+    """Classify recent DS task instance fallback confidence conservatively.
+
+    Instance fallback is intentionally stricter than definition matching. Recent
+    tasks in the same window often read the same source tables, so source-table
+    overlap alone must not become a displayed DS ownership result.
+    """
+    if target_log_hit_count:
+        return "high"
+    if target_name_hit_count:
+        return "high"
+    if log_checked and log_hit_count >= 3:
+        return "medium" if temporary_target else "high"
+    return "low"
+
+
 def score_instance_matches(
     source_sql: str,
     rows: list[dict[str, str]],
@@ -841,15 +864,13 @@ def score_instance_matches(
             + target_name_hit_count * 1200
             + name_hit_count * 350
         )
-        confidence = "low"
-        if target_log_hit_count or log_hit_count >= 3:
-            confidence = "high"
-        elif log_hit_count >= 2 or target_name_hit_count:
-            confidence = "medium"
-        elif temporary_target and name_hit_count:
-            # Temporary targets rarely appear in DS metadata. A source-table keyword
-            # hit in a recent task instance is useful, but only medium confidence.
-            confidence = "medium"
+        confidence = classify_instance_confidence(
+            temporary_target=temporary_target,
+            target_name_hit_count=target_name_hit_count,
+            target_log_hit_count=target_log_hit_count,
+            log_hit_count=log_hit_count,
+            log_checked=log_checked,
+        )
 
         info = {
             "score": score,
