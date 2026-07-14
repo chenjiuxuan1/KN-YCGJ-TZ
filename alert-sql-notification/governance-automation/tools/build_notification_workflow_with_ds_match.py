@@ -497,6 +497,38 @@ def patch_sidecar_message(js_code: str) -> str:
         "dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord,",
         "dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base),",
     )
+    if "personalWeiduSignalValues" not in js_code:
+        js_code = js_code.replace(
+            "const csvGroupSignalText = csvGroupSignalValues.join('\\n');",
+            "const csvGroupSignalText = csvGroupSignalValues.join('\\n');\n"
+            "const personalWeiduSignalValues = uniq([\n"
+            "  ...(Array.isArray(base.notifyEmails) ? base.notifyEmails : []),\n"
+            "  sanitize(base.notifyEmail),\n"
+            "  sanitize(base.primaryEmail),\n"
+            "  sanitize(base.userEmail),\n"
+            "  sanitize(base.email),\n"
+            "]);\n"
+            "const personalWeiduSignalText = personalWeiduSignalValues.join('\\n');",
+        )
+    js_code = js_code.replace(
+        "const isWeiduGroupAlert = Boolean(base.departmentAccountNotifyMatched)\n"
+        "  && !isMexicoAifoxGroupAlert\n"
+        "  && (/(^|\\n|\\s|,|，|、)唯渡($|\\n|\\s|,|，|、)/i.test(csvGroupSignalText)\n"
+        "    || /@weidu\\.co\\b/i.test(csvGroupSignalText)\n"
+        "    || /杜艳华|elsadu/i.test(csvGroupSignalText));",
+        "const isWeiduGroupAlert = !isMexicoAifoxGroupAlert\n"
+        "  && ((Boolean(base.departmentAccountNotifyMatched)\n"
+        "    && (/(^|\\n|\\s|,|，|、)唯渡($|\\n|\\s|,|，|、)/i.test(csvGroupSignalText)\n"
+        "      || /@weidu\\.co\\b/i.test(csvGroupSignalText)\n"
+        "      || /杜艳华|elsadu/i.test(csvGroupSignalText)))\n"
+        "    || /@weidu\\.co\\b/i.test(personalWeiduSignalText));",
+    )
+    js_code = js_code.replace(
+        "reason: '精确命中 CSV 映射且部门/联系人/邮箱属于唯渡，且未命中账号级专属群规则，改为唯渡群机器人通知，不发送个人 sidecar。',\n"
+        "    signals: csvGroupSignalValues,",
+        "reason: '命中唯渡特殊规则（CSV 部门/联系人/邮箱，或个人邮箱 @weidu.co），且未命中账号级专属群规则，改为唯渡群机器人通知，不发送个人 sidecar。',\n"
+        "    signals: [...csvGroupSignalValues, ...personalWeiduSignalValues],",
+    )
     insert = (
         "  + (base.dsTaskMatchOk ? 'SQL 所属 DS 任务：\\n'"
         " + (sanitize(base.dsCountryName) ? sanitize(base.dsCountryName) + ' DS 调度' : 'DS 调度')"
@@ -508,6 +540,13 @@ def patch_sidecar_message(js_code: str) -> str:
     if "SQL 所属 DS 任务" in js_code or "DS 匹配信息" in js_code:
         return force_user_only_ds_account_check(js_code)
     return force_user_only_ds_account_check(js_code.replace(marker, insert + marker))
+
+
+def patch_merge_notify_target(js_code: str) -> str:
+    return js_code.replace(
+        'const userEmailOverrides = {"alyssali":"Alyssali@weidu.co"};',
+        'const userEmailOverrides = {"alyssali":"Alyssali@weidu.co","pengchengzhou":"pengchengzhou@weidu.co"};',
+    )
 
 
 def patch_webhook_response(js_code: str) -> str:
@@ -698,6 +737,11 @@ def main() -> None:
 
     sidecar = node_by_name(workflow, "Build Sidecar Payload")
     sidecar["parameters"]["jsCode"] = patch_sidecar_message(sidecar["parameters"]["jsCode"])
+
+    merge_notify_target = node_by_name(workflow, "Merge Notify Target")
+    merge_notify_target["parameters"]["jsCode"] = patch_merge_notify_target(
+        merge_notify_target["parameters"]["jsCode"]
+    )
 
     response = node_by_name(workflow, "Build Webhook Response")
     response["parameters"]["jsCode"] = patch_webhook_response(response["parameters"]["jsCode"])
