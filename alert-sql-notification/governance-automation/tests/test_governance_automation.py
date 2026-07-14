@@ -117,6 +117,31 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(rows[0]["task_name"], "dwt_user_behavior_base_snap")
         self.assertEqual(meta["confidence"], "high")
 
+    def test_remote_ds_match_rejects_quality_check_definition_candidates(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        rows, meta = module.pick_best_match(
+            "insert into ads.ads_user_stat select * from dwd.dwd_w_user",
+            [
+                {
+                    "project_name": "菲律宾数仓-数据质量",
+                    "workflow_name": "每12小时校验2级表数据(D-1)",
+                    "task_name": "ADS层数据校验",
+                    "task_type": "SHELL",
+                    "script_content": "select count(*) from ads.ads_user_stat join dwd.dwd_w_user on 1 = 1",
+                }
+            ],
+        )
+
+        self.assertEqual(rows, [])
+        self.assertEqual(meta["match_info"], "no-match")
+
     def test_remote_ds_instance_fallback_rejects_temporary_target_without_log_evidence(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
@@ -231,6 +256,42 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(rows, [])
         self.assertEqual(meta["match_info"], "no-match")
         self.assertTrue(meta["instance_match_candidates"][0]["quality_check_task"])
+
+    def test_remote_ds_instance_fallback_never_accepts_quality_check_tasks(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        source_sql = "insert into ads.ads_user_stat select * from dwd.dwd_w_user"
+        with tempfile.NamedTemporaryFile("w", encoding="utf-8", delete=False) as handle:
+            handle.write(source_sql)
+            log_path = handle.name
+        try:
+            rows, meta = module.score_instance_matches(
+                source_sql,
+                [
+                    {
+                        "project_name": "菲律宾数仓-数据质量",
+                        "workflow_name": "每12小时校验2级表数据(D-1)",
+                        "task_name": "ADS层数据校验",
+                        "task_type": "SHELL",
+                        "instance_start_time": "2026-07-14 10:00:00",
+                        "instance_log_path": log_path,
+                    }
+                ],
+                log_limit=1,
+            )
+        finally:
+            os.unlink(log_path)
+
+        self.assertEqual(rows, [])
+        self.assertEqual(meta["match_info"], "no-match")
+        self.assertTrue(meta["instance_match_candidates"][0]["quality_check_task"])
+        self.assertEqual(meta["instance_match_candidates"][0]["confidence"], "low")
 
     def test_remote_ds_recent_instance_query_uses_time_window_without_name_prefilter(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"

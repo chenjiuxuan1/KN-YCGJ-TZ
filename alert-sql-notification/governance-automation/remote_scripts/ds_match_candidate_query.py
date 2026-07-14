@@ -723,6 +723,17 @@ def candidate_sql(row: dict[str, str]) -> str:
     )
 
 
+def is_quality_check_task(row: dict[str, str]) -> bool:
+    text = " ".join(
+        [
+            str(row.get("project_name", "")),
+            str(row.get("workflow_name", "")),
+            str(row.get("task_name", "")),
+        ]
+    ).lower()
+    return any(keyword.lower() in text for keyword in QUALITY_TASK_KEYWORDS)
+
+
 def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, Any]]:
     source_action, source_tables = extract_action_tables(source_sql)
     source_targets = extract_target_tables(source_sql)
@@ -745,6 +756,8 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
     superset: list[tuple[dict[str, str], list[str]]] = []
     scored: list[tuple[float, dict[str, str], list[str], dict[str, Any]]] = []
     for row in rows:
+        if is_quality_check_task(row):
+            continue
         row_sql = candidate_sql(row)
         row_action, row_tables = extract_action_tables(row_sql)
         row_targets = extract_target_tables(row_sql)
@@ -901,17 +914,6 @@ def count_text_hits(text: str, terms: list[str]) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
-def is_quality_check_task(row: dict[str, str]) -> bool:
-    text = " ".join(
-        [
-            str(row.get("project_name", "")),
-            str(row.get("workflow_name", "")),
-            str(row.get("task_name", "")),
-        ]
-    ).lower()
-    return any(keyword.lower() in text for keyword in QUALITY_TASK_KEYWORDS)
-
-
 def action_appears_in_text(action: str, text: str) -> bool:
     action_value = str(action or "").lower()
     if not action_value:
@@ -945,6 +947,8 @@ def classify_instance_confidence(
     overlap alone must not become a displayed DS ownership result.
     """
     if source_is_write and quality_check_task and not action_in_log:
+        return "low"
+    if quality_check_task:
         return "low"
     if source_is_write and log_checked and target_log_hit_count and not action_in_log:
         return "low"
