@@ -315,6 +315,14 @@ def extract_ip_values(value: str) -> list[str]:
 def ds_host_gate(country: str, alert_host_ip: str = "") -> tuple[bool, dict[str, Any]]:
     allowed = sorted(DS_ALLOWED_HOST_IPS.get(country, set()))
     alert_ips = extract_ip_values(alert_host_ip)
+    if not alert_ips:
+        return True, {
+            "ds_host_gate": "unverified",
+            "ds_host_gate_reason": "missing-alert-host-ip",
+            "alert_host_ips": [],
+            "matched_ds_host_ips": [],
+            "allowed_ds_host_ip_count": len(allowed),
+        }
     matched = [ip for ip in alert_ips if ip in allowed]
     if matched:
         return True, {
@@ -323,10 +331,9 @@ def ds_host_gate(country: str, alert_host_ip: str = "") -> tuple[bool, dict[str,
             "matched_ds_host_ips": matched,
             "allowed_ds_host_ip_count": len(allowed),
         }
-    reason = "missing-alert-host-ip" if not alert_ips else "alert-host-ip-not-in-ds-allowlist"
     return False, {
         "ds_host_gate": "skipped",
-        "ds_host_gate_reason": reason,
+        "ds_host_gate_reason": "alert-host-ip-not-in-ds-allowlist",
         "alert_host_ips": alert_ips,
         "matched_ds_host_ips": [],
         "allowed_ds_host_ip_count": len(allowed),

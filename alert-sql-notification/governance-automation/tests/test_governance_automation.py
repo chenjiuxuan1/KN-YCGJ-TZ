@@ -63,7 +63,8 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(meta["ds_host_gate_reason"], "alert-host-ip-not-in-ds-allowlist")
 
         allowed, meta = module.ds_host_gate("ph", "")
-        self.assertFalse(allowed)
+        self.assertTrue(allowed)
+        self.assertEqual(meta["ds_host_gate"], "unverified")
         self.assertEqual(meta["ds_host_gate_reason"], "missing-alert-host-ip")
 
     def test_remote_ds_match_does_not_treat_derived_mv_task_as_target_table(self):

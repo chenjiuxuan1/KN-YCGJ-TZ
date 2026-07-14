@@ -54,9 +54,11 @@ DS_MATCH_GATE_EXPRESSION = """={{ (() => {
     base.message, base.rawMessage, alert.message, alert.rawMessage,
     ...collectStrings(alert.hostInfo || alert.hosts || base.hostInfo || base.hosts || ''),
   ];
-  const hostIps = hostTexts.flatMap(extractIps);
+  const hostIps = Array.from(new Set(hostTexts.flatMap(extractIps)));
+  const hasHostIp = hostIps.length > 0;
+  const hasAllowedHostIp = hostIps.some((ip) => allowedIps.has(ip));
   const user = norm(base.user || queryContext.user || alert.user);
-  return looksSystemAccount(user) && hostIps.some((ip) => allowedIps.has(ip));
+  return looksSystemAccount(user) && (!hasHostIp || hasAllowedHostIp);
 })() }}"""
 
 
@@ -99,8 +101,7 @@ if (!shouldMatchDsForAccount(base)) {
 const gateSkipped = inputRows.find((row) => {
   const meta = row.meta || {};
   const info = String(row.dsTaskMatchInfo || meta.match_info || meta.ds_host_gate_reason || '').trim();
-  return meta.ds_host_gate === 'skipped'
-    || info === 'missing-alert-host-ip'
+  return (meta.ds_host_gate === 'skipped' && info !== 'missing-alert-host-ip')
     || info === 'alert-host-ip-not-in-ds-allowlist';
 });
 

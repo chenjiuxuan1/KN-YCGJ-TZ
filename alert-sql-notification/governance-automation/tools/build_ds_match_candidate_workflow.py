@@ -160,8 +160,7 @@ if (!parsed.success) {
 }
 if (!rows.length) {
   const meta = parsed.meta || {};
-  const gateSkipped = meta.ds_host_gate === 'skipped'
-    || meta.match_info === 'missing-alert-host-ip'
+  const gateSkipped = (meta.ds_host_gate === 'skipped' && meta.match_info !== 'missing-alert-host-ip')
     || meta.match_info === 'alert-host-ip-not-in-ds-allowlist';
   return [{ json: {
     ...parsed,
