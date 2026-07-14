@@ -25,8 +25,38 @@ DS_MATCH_GATE_EXPRESSION = """={{ (() => {
   const alert = evidence.alert || {};
   const norm = (value) => String(value || '').trim().toLowerCase();
   const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(norm(value));
+  const allowedIps = new Set([
+    '10.20.47.14', '10.20.48.14', '10.20.49.14',
+    '192.168.21.236',
+    '172.20.228.144', '172.20.228.145', '172.20.228.146', '172.20.228.160', '172.20.228.226', '172.20.220.165',
+    '10.20.84.21', '10.20.84.22', '10.20.84.23', '10.20.84.244', '10.20.84.207', '10.20.10.12',
+    '10.20.84.176', '10.20.84.177', '10.20.84.178', '10.20.84.186', '10.20.11.252',
+    '192.168.20.236', '192.168.102.6', '192.168.102.7', '192.168.102.8', '192.168.102.9', '192.168.101.206',
+  ]);
+  const collectStrings = (value, seen = new Set()) => {
+    if (value === null || value === undefined) return [];
+    if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+    if (typeof value !== 'object' || seen.has(value)) return [];
+    seen.add(value);
+    const out = [];
+    if (Array.isArray(value)) {
+      for (const item of value) out.push(...collectStrings(item, seen));
+    } else {
+      for (const item of Object.values(value)) out.push(...collectStrings(item, seen));
+    }
+    return out;
+  };
+  const extractIps = (value) => String(value || '').match(/\\b(?:\\d{1,3}\\.){3}\\d{1,3}\\b/g) || [];
+  const hostTexts = [
+    base.hostIp, base.host, base.clientIp, base.clientHost, base.queryHost, base.feIp, base.beIp,
+    queryContext.hostIp, queryContext.host, queryContext.clientIp, queryContext.clientHost, queryContext.queryHost, queryContext.feIp, queryContext.beIp,
+    alert.hostIp, alert.host, alert.clientIp, alert.clientHost, alert.queryHost, alert.feIp, alert.beIp,
+    base.message, base.rawMessage, alert.message, alert.rawMessage,
+    ...collectStrings(alert.hostInfo || alert.hosts || base.hostInfo || base.hosts || ''),
+  ];
+  const hostIps = hostTexts.flatMap(extractIps);
   const user = norm(base.user || queryContext.user || alert.user);
-  return looksSystemAccount(user);
+  return looksSystemAccount(user) && hostIps.some((ip) => allowedIps.has(ip));
 })() }}"""
 
 
@@ -578,7 +608,7 @@ def patch_webhook_response(js_code: str) -> str:
 
 def main() -> None:
     workflow = json.loads(resolve_input().read_text(encoding="utf-8"))
-    workflow["name"] = workflow.get("name", "") + "_DS匹配增强版"
+    workflow["name"] = "sql优化_部门账号联系人通知_DS匹配增强版"
     workflow["active"] = False
 
     gate_node = {
@@ -611,7 +641,7 @@ def main() -> None:
             },
             "workflowInputs": {
                 "mappingMode": "defineBelow",
-                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}",
+                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\", \"hostIp\": $json.hostIp || $json.clientIp || $json.queryHost || ((($json.evidence || {}).queryContext || {}).hostIp) || ((($json.evidence || {}).queryContext || {}).clientIp) || ((($json.evidence || {}).alert || {}).hostIp) || ((($json.evidence || {}).alert || {}).clientIp) || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}",
             },
             "options": {},
         },

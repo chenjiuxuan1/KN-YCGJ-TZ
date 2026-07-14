@@ -44,6 +44,28 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(connection.user, "e_ds")
         self.assertEqual(connection.password, "test-password")
 
+    def test_remote_ds_host_gate_allows_only_configured_ds_ips(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        allowed, meta = module.ds_host_gate("ph", "worker host 10.20.84.22:1234")
+        self.assertTrue(allowed)
+        self.assertEqual(meta["ds_host_gate"], "matched")
+        self.assertEqual(meta["matched_ds_host_ips"], ["10.20.84.22"])
+
+        allowed, meta = module.ds_host_gate("ph", "10.20.99.99")
+        self.assertFalse(allowed)
+        self.assertEqual(meta["ds_host_gate_reason"], "alert-host-ip-not-in-ds-allowlist")
+
+        allowed, meta = module.ds_host_gate("ph", "")
+        self.assertFalse(allowed)
+        self.assertEqual(meta["ds_host_gate_reason"], "missing-alert-host-ip")
+
     def test_remote_ds_match_does_not_treat_derived_mv_task_as_target_table(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)

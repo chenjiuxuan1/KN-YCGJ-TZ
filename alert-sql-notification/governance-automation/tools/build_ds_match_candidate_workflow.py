@@ -98,7 +98,35 @@ if (!country) {
 const requestId = String(raw.request_id || raw.queryId || raw.query_id || Date.now()).trim();
 const sqlText = String(raw.sqlText || raw.sql_text || raw.originalSql || raw.original_sql || '').trim();
 const sqlTextBase64 = Buffer.from(sqlText, 'utf8').toString('base64');
-return [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64 } }];"""
+function collectStrings(value, seen = new Set()) {
+  if (value === null || value === undefined) return [];
+  if (typeof value === 'string' || typeof value === 'number') return [String(value)];
+  if (typeof value !== 'object' || seen.has(value)) return [];
+  seen.add(value);
+  const out = [];
+  if (Array.isArray(value)) {
+    for (const item of value) out.push(...collectStrings(item, seen));
+  } else {
+    for (const item of Object.values(value)) out.push(...collectStrings(item, seen));
+  }
+  return out;
+}
+function extractIps(value) {
+  return String(value || '').match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
+}
+const evidence = raw.evidence || {};
+const queryContext = evidence.queryContext || {};
+const alert = evidence.alert || {};
+const hostTexts = [
+  raw.hostIp, raw.host, raw.clientIp, raw.clientHost, raw.queryHost, raw.feIp, raw.beIp,
+  queryContext.hostIp, queryContext.host, queryContext.clientIp, queryContext.clientHost, queryContext.queryHost, queryContext.feIp, queryContext.beIp,
+  alert.hostIp, alert.host, alert.clientIp, alert.clientHost, alert.queryHost, alert.feIp, alert.beIp,
+  raw.message, raw.rawMessage, alert.message, alert.rawMessage,
+  ...collectStrings(alert.hostInfo || alert.hosts || raw.hostInfo || raw.hosts || ''),
+];
+const hostIps = Array.from(new Set(hostTexts.flatMap(extractIps)));
+const hostIp = String(raw.hostIp || raw.clientIp || raw.queryHost || hostIps[0] || '').trim();
+return [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64, hostIp, hostIps } }];"""
 
 
 PARSE_JS = r"""const raw = $json || {};
@@ -196,15 +224,7 @@ def wattrel_export_command(config: dict[str, str]) -> str:
 
 
 def ds_country_export_command(country: str) -> str:
-    config = DS_COUNTRY_CONFIG[country]
-    return " && ".join(
-        [
-            f"export DS_DB_HOST={shlex.quote(config['host'])}",
-            f"export DS_DB_PORT={shlex.quote(config['port'])}",
-            f"export DS_DB_NAME={shlex.quote(config['database'])}",
-            f"export DS_DB_USER={shlex.quote(config['user'])}",
-        ]
-    )
+    return ""
 
 
 def resolve_router_input() -> Path:
@@ -279,7 +299,7 @@ cd "\\$REPO"
 
 
 def remote_command(template: str, country: str) -> str:
-    export_parts = [ds_country_export_command(country)]
+    export_parts = [part for part in [ds_country_export_command(country)] if part]
     wattrel_exports = wattrel_export_command(extract_wattrel_config())
     if wattrel_exports:
         export_parts.append(wattrel_exports)
@@ -287,7 +307,7 @@ def remote_command(template: str, country: str) -> str:
     inner = f"""{candidate_query_command()}
 {exports}
 
-python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}' --alert-time '{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}'
+python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}' --alert-time '{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}' --alert-host-ip '{{{{$json.hostIp || ($json.hostIps || []).join(",") || ""}}}}'
 """
     return template.replace(
         "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "

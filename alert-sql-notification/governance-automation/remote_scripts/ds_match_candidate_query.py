@@ -36,6 +36,49 @@ COUNTRY_BY_CLUSTER = {
 VALID_COUNTRIES = {"cn", "ine", "mx", "ph", "pk", "th"}
 
 
+DS_ALLOWED_HOST_IPS = {
+    "cn": {
+        "10.20.47.14",
+        "10.20.48.14",
+        "10.20.49.14",
+    },
+    "ine": {
+        "192.168.21.236",
+    },
+    "mx": {
+        "172.20.228.144",
+        "172.20.228.145",
+        "172.20.228.146",
+        "172.20.228.160",
+        "172.20.228.226",
+        "172.20.220.165",
+    },
+    "ph": {
+        "10.20.84.21",
+        "10.20.84.22",
+        "10.20.84.23",
+        "10.20.84.244",
+        "10.20.84.207",
+        "10.20.10.12",
+    },
+    "pk": {
+        "10.20.84.176",
+        "10.20.84.177",
+        "10.20.84.178",
+        "10.20.84.186",
+        "10.20.11.252",
+    },
+    "th": {
+        "192.168.20.236",
+        "192.168.102.6",
+        "192.168.102.7",
+        "192.168.102.8",
+        "192.168.102.9",
+        "192.168.101.206",
+    },
+}
+
+
 DS_COUNTRY_CONFIG = {
     "cn": {
         "host": "rm-uf60p909s1lpp1urp.mysql.rds.aliyuncs.com",
@@ -256,6 +299,40 @@ def normalize_country(country: str = "", cluster: str = "") -> str:
     return ""
 
 
+def extract_ip_values(value: str) -> list[str]:
+    text = str(value or "")
+    seen: set[str] = set()
+    ips: list[str] = []
+    for match in re.finditer(r"\b(?:\d{1,3}\.){3}\d{1,3}\b", text):
+        ip = match.group(0)
+        parts = ip.split(".")
+        if all(part.isdigit() and 0 <= int(part) <= 255 for part in parts) and ip not in seen:
+            seen.add(ip)
+            ips.append(ip)
+    return ips
+
+
+def ds_host_gate(country: str, alert_host_ip: str = "") -> tuple[bool, dict[str, Any]]:
+    allowed = sorted(DS_ALLOWED_HOST_IPS.get(country, set()))
+    alert_ips = extract_ip_values(alert_host_ip)
+    matched = [ip for ip in alert_ips if ip in allowed]
+    if matched:
+        return True, {
+            "ds_host_gate": "matched",
+            "alert_host_ips": alert_ips,
+            "matched_ds_host_ips": matched,
+            "allowed_ds_host_ip_count": len(allowed),
+        }
+    reason = "missing-alert-host-ip" if not alert_ips else "alert-host-ip-not-in-ds-allowlist"
+    return False, {
+        "ds_host_gate": "skipped",
+        "ds_host_gate_reason": reason,
+        "alert_host_ips": alert_ips,
+        "matched_ds_host_ips": [],
+        "allowed_ds_host_ip_count": len(allowed),
+    }
+
+
 def run_command(command: list[str], *, env: dict[str, str] | None = None, timeout: int = 120) -> str:
     result = subprocess.run(
         command,
@@ -350,16 +427,11 @@ def discover_ds_mysql_connection(args: argparse.Namespace, env: dict[str, str]) 
     if explicit.host and explicit.database and explicit.user and explicit.password:
         return explicit
 
-    configured = configured_ds_mysql_connection(normalize_country(args.country, args.cluster))
-    if configured:
-        return configured
-
     url = (
         env.get("SPRING_DATASOURCE_URL")
         or env.get("SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_URL")
         or pick_env(env, "SPRING", "DATASOURCE", "URL")
     )
-    host, port, database = parse_mysql_jdbc_url(url)
     user = (
         env.get("SPRING_DATASOURCE_USERNAME")
         or env.get("SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_USERNAME")
@@ -370,9 +442,17 @@ def discover_ds_mysql_connection(args: argparse.Namespace, env: dict[str, str]) 
         or env.get("SPRING_DATASOURCE_DYNAMIC_DATASOURCE_MASTER_PASSWORD")
         or pick_env(env, "SPRING", "DATASOURCE", "PASSWORD")
     )
-    if not user or not password:
-        raise RuntimeError("SPRING_DATASOURCE_USERNAME_OR_PASSWORD_NOT_FOUND")
-    return MysqlConnection(host=host, port=port, database=database, user=user, password=password)
+    if url and user and password:
+        host, port, database = parse_mysql_jdbc_url(url)
+        return MysqlConnection(host=host, port=port, database=database, user=user, password=password)
+
+    configured = configured_ds_mysql_connection(normalize_country(args.country, args.cluster))
+    if configured:
+        return configured
+
+    if not url:
+        raise RuntimeError("SPRING_DATASOURCE_URL_NOT_FOUND_OR_UNSUPPORTED")
+    raise RuntimeError("SPRING_DATASOURCE_USERNAME_OR_PASSWORD_NOT_FOUND")
 
 
 def discover_wattrel_connection(args: argparse.Namespace) -> MysqlConnection | None:
@@ -1080,6 +1160,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
     parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
+    parser.add_argument("--alert-host-ip", default="", help="StarRocks alert host/client IP. DS matching only runs for allowed DS host IPs.")
     parser.add_argument("--instance-limit", type=int, default=50, help="Max recent task instances to inspect after definition no-match.")
     parser.add_argument("--instance-before-minutes", type=int, default=60, help="Minutes before alert time for task instance fallback.")
     parser.add_argument("--instance-after-minutes", type=int, default=10, help="Minutes after alert time for task instance fallback.")
@@ -1106,15 +1187,36 @@ def main() -> None:
         print(json.dumps(error_response("", RuntimeError("INVALID_COUNTRY_OR_CLUSTER")), ensure_ascii=False))
         return
     try:
+        host_allowed, host_gate_meta = ds_host_gate(country, args.alert_host_ip)
+        if not host_allowed:
+            print(
+                json.dumps(
+                    {
+                        "success": True,
+                        "country": country,
+                        "candidate_count": 0,
+                        "data": [],
+                        "meta": {
+                            **host_gate_meta,
+                            "match_info": host_gate_meta.get("ds_host_gate_reason", "skip-ds-host-gate"),
+                        },
+                        "error": None,
+                    },
+                    ensure_ascii=False,
+                )
+            )
+            return
         pid = ""
         env: dict[str, str] = {}
-        configured = configured_ds_mysql_connection(country)
-        if configured:
-            connection = configured
-        else:
+        try:
             pid = find_ds_pid()
             env = read_process_env(pid)
             connection = discover_ds_mysql_connection(args, env)
+        except Exception as discover_error:
+            configured = configured_ds_mysql_connection(country)
+            if not configured:
+                raise discover_error
+            connection = configured
         wattrel_connection = discover_wattrel_connection(args)
         source_sql = decode_base64_text(args.sql_text_b64)
         script_filter_sql, filter_tables = build_script_filter_sql(source_sql)
@@ -1159,7 +1261,15 @@ def main() -> None:
                 }
         print(
             json.dumps(
-                success_response(country, pid, connection, rows, wattrel_connection, filter_tables, match_meta),
+                success_response(
+                    country,
+                    pid,
+                    connection,
+                    rows,
+                    wattrel_connection,
+                    filter_tables,
+                    {**host_gate_meta, **match_meta},
+                ),
                 ensure_ascii=False,
             )
         )
