@@ -313,6 +313,96 @@ return [{ json: {
 }}];"""
 
 
+KN_CHAT_SEND_JS = r"""const base = $json || {};
+const payload = base.sidecarPayload || {};
+const notifyConfig = base.notifyConfig || {};
+const textOf = (value) => value === null || value === undefined ? '' : String(value);
+const trim = (value) => textOf(value).trim();
+const apiBase = trim(notifyConfig.knChatBotApiBase || base.knChatBotApiBase || 'https://bot.kn.chat').replace(/\/+$/, '');
+const token = trim(notifyConfig.knChatBotToken || base.knChatBotToken || (typeof process !== 'undefined' && process.env ? process.env.KN_CHAT_BOT_TOKEN : ''));
+const text = trim(payload.text || payload.data || payload.message);
+const email = trim(payload.email || base.notifyEmail);
+let chatId = payload.chat_id || payload.chatId || payload.user_id || payload.userId || '';
+
+const resultBase = {
+  ...base,
+  sidecarProvider: 'kn_chat_bot',
+  knChatApiBase: apiBase,
+  knChatRecipientEmail: email,
+  knChatRecipientChatId: chatId,
+};
+
+if (!base.sidecarShouldSend) {
+  return [{ json: { ...resultBase, knChatNotifyOk: false, knChatSkipped: true, knChatSkipReason: 'sidecarShouldSend=false' } }];
+}
+if (!token) {
+  return [{ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_BOT_TOKEN_MISSING', message: '请在 n8n 环境变量 KN_CHAT_BOT_TOKEN 中配置 KN Chat bot token。' } }];
+}
+if (!text) {
+  return [{ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_TEXT_MISSING' } }];
+}
+
+async function postKnChat(method, body) {
+  return await this.helpers.httpRequest({
+    method: 'POST',
+    url: `${apiBase}/bot${token}/${method}`,
+    headers: { 'Content-Type': 'application/json' },
+    body,
+    json: true,
+    returnFullResponse: true,
+    timeout: 15000,
+    ignoreHttpStatusErrors: true,
+  });
+}
+
+let resolveResponse = null;
+if (!chatId && email) {
+  resolveResponse = await postKnChat.call(this, 'resolveUserId', { email });
+  const resolveBody = resolveResponse.body || {};
+  if (resolveBody.ok && resolveBody.result && resolveBody.result.user_id) {
+    chatId = resolveBody.result.user_id;
+  }
+}
+
+if (!chatId) {
+  return [{
+    json: {
+      ...resultBase,
+      knChatNotifyOk: false,
+      sidecarSendOk: false,
+      knChatError: 'KN_CHAT_CHAT_ID_MISSING',
+      knChatResolveResponse: resolveResponse && resolveResponse.body,
+      message: 'KN Chat 发送失败：缺少 chat_id；个人通知需邮箱可 resolveUserId，群通知需配置群 chat_id。'
+    }
+  }];
+}
+
+const sendBody = {
+  chat_id: chatId,
+  text,
+  disable_web_page_preview: true,
+};
+const sendResponse = await postKnChat.call(this, 'sendMessage', sendBody);
+const sendBodyResult = sendResponse.body || {};
+const ok = !!sendBodyResult.ok;
+
+return [{
+  json: {
+    ...resultBase,
+    sidecarChannel: base.sidecarChannel || 'kn_chat_bot',
+    sidecarUrl: `${apiBase}/bot<TOKEN>/sendMessage`,
+    sidecarPayload: sendBody,
+    knChatRecipientChatId: chatId,
+    knChatResolveResponse: resolveResponse && resolveResponse.body,
+    knChatSendResponse: sendBodyResult,
+    notifyResponse: sendBodyResult,
+    knChatNotifyOk: ok,
+    sidecarSendOk: ok,
+    error: ok ? null : (sendBodyResult.description || sendBodyResult.error_code || 'KN_CHAT_SEND_FAILED'),
+  }
+}];"""
+
+
 def node_by_name(workflow: dict, name: str) -> dict:
     return next(node for node in workflow["nodes"] if node["name"] == name)
 
@@ -549,6 +639,135 @@ def patch_merge_notify_target(js_code: str) -> str:
     )
 
 
+def patch_notify_config(js_code: str) -> str:
+    legacy_replacements = [
+        ("sidecarAccountId: '7660ec09-ec27-4799-8b0e-c66a5322cbc5'", "sidecarAccountId: ''"),
+        ("sidecarToken: '6fc22462-da46-42a3-b3ed-fb4ab8c1573f'", "sidecarToken: ''"),
+        ("weiduSidecarAccountId: 'e623d433-087b-4740-8a9d-c68a1b682cdc'", "weiduSidecarAccountId: ''"),
+        ("weiduSidecarToken: 'dc978f86-8108-4135-8139-45e95010b450'", "weiduSidecarToken: ''"),
+        ("weiduGroupBotId: '9ce66a04-5acf-4f84-9fc0-c213760bae05'", "weiduGroupBotId: ''"),
+        ("weiduGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array'", "weiduGroupUrl: 'https://bot.kn.chat'"),
+        ("operationGroupBotId: '66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302'", "operationGroupBotId: ''"),
+        ("operationGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array'", "operationGroupUrl: 'https://bot.kn.chat'"),
+        ("mexicoAifoxGroupBotId: 'e10c0656-a479-4053-a9cd-18b4d1fe4c87'", "mexicoAifoxGroupBotId: ''"),
+        ("mexicoAifoxGroupUrl: 'https://tv-service-alert.kuainiu.chat/alert/v2/array'", "mexicoAifoxGroupUrl: 'https://bot.kn.chat'"),
+    ]
+    for old, new in legacy_replacements:
+        js_code = js_code.replace(old, new)
+    if "knChatBotApiBase" not in js_code:
+        js_code = js_code.replace(
+            "  contactUpdateFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSemG0t7I77-t7z0_mKit8E6UIPtz6mXEfeyTGQKrjwL-h7ykQ/viewform?usp=publish-editor',",
+            "  contactUpdateFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSemG0t7I77-t7z0_mKit8E6UIPtz6mXEfeyTGQKrjwL-h7ykQ/viewform?usp=publish-editor',\n"
+            "  knChatBotApiBase: 'https://bot.kn.chat',\n"
+            "  knChatBotToken: '',\n"
+            "  weiduGroupChatId: '',\n"
+            "  operationGroupChatId: '',\n"
+            "  mexicoAifoxGroupChatId: '',",
+        )
+    return js_code
+
+
+def patch_kn_chat_sidecar_payload(js_code: str) -> str:
+    js_code = js_code.replace(
+        "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || 'e10c0656-a479-4053-a9cd-18b4d1fe4c87'),",
+        "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || ''),",
+    )
+    js_code = js_code.replace(
+        "botId: sanitize(notifyConfig.operationGroupBotId || '66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302'),",
+        "botId: sanitize(notifyConfig.operationGroupBotId || ''),",
+    )
+    js_code = js_code.replace(
+        "botId: sanitize(notifyConfig.weiduGroupBotId || '9ce66a04-5acf-4f84-9fc0-c213760bae05'),",
+        "botId: sanitize(notifyConfig.weiduGroupBotId || ''),",
+    )
+    replacements = [
+        (
+            "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.mexicoAifoxGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+            "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.mexicoAifoxGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || 'e10c0656-a479-4053-a9cd-18b4d1fe4c87'),\n"
+            "    url: sanitize(notifyConfig.mexicoAifoxGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),",
+            "botId: sanitize(notifyConfig.mexicoAifoxGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.mexicoAifoxGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "botId: sanitize(notifyConfig.operationGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.operationGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+            "botId: sanitize(notifyConfig.operationGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.operationGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "botId: sanitize(notifyConfig.operationGroupBotId || '66f4d55a-1ca1-45fc-aaf7-f7e9f4dfa302'),\n"
+            "    url: sanitize(notifyConfig.operationGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),",
+            "botId: sanitize(notifyConfig.operationGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.operationGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "botId: sanitize(notifyConfig.weiduGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.weiduGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+            "botId: sanitize(notifyConfig.weiduGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.weiduGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "botId: sanitize(notifyConfig.weiduGroupBotId || '9ce66a04-5acf-4f84-9fc0-c213760bae05'),\n"
+            "    url: sanitize(notifyConfig.weiduGroupUrl || 'https://tv-service-alert.kuainiu.chat/alert/v2/array'),",
+            "botId: sanitize(notifyConfig.weiduGroupBotId || ''),\n"
+            "    chatId: sanitize(notifyConfig.weiduGroupChatId || ''),\n"
+            "    url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "const payload = {\n"
+            "    botId: matchedSpecialGroupRule.botId,\n"
+            "    message: data,\n"
+            "    mentions: []\n"
+            "  };",
+            "const payload = {\n"
+            "    chat_id: matchedSpecialGroupRule.chatId,\n"
+            "    text: data,\n"
+            "    legacyBotId: matchedSpecialGroupRule.botId,\n"
+            "    mentions: []\n"
+            "  };",
+        ),
+        (
+            "sidecarShouldSend: Boolean(matchedSpecialGroupRule.botId && data.trim()),",
+            "sidecarShouldSend: Boolean(matchedSpecialGroupRule.chatId && data.trim()),",
+        ),
+        (
+            "const payload = { type: 'TEXT', email, data, accountId, token };",
+            "const payload = { email, text: data };",
+        ),
+        (
+            "url: 'https://sidecar.kuainiu.chat/conversation',",
+            "url: sanitize(notifyConfig.knChatBotApiBase || 'https://bot.kn.chat'),",
+        ),
+        (
+            "shouldSend: Boolean(email && accountId && token && data.trim())",
+            "shouldSend: Boolean(email && data.trim())",
+        ),
+    ]
+    for old, new in replacements:
+        js_code = js_code.replace(old, new)
+    return js_code
+
+
+def patch_dedupe_node(js_code: str) -> str:
+    return js_code.replace(
+        "const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();",
+        "const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).chat_id || (base.sidecarPayload || {}).chatId || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();",
+    )
+
+
 def patch_webhook_response(js_code: str) -> str:
     js_code = force_user_only_ds_account_check(js_code)
     js_code = js_code.replace(
@@ -735,8 +954,33 @@ def main() -> None:
     connect(workflow, "Merge DS Task Match", ["Call Qwen Chat API"])
     connect(workflow, "Parse AI Result", ["Has Optimized SQL?"])
 
+    notify_config = node_by_name(workflow, "Notify Config")
+    notify_config["parameters"]["jsCode"] = patch_notify_config(notify_config["parameters"]["jsCode"])
+
     sidecar = node_by_name(workflow, "Build Sidecar Payload")
-    sidecar["parameters"]["jsCode"] = patch_sidecar_message(sidecar["parameters"]["jsCode"])
+    sidecar["parameters"]["jsCode"] = patch_kn_chat_sidecar_payload(
+        patch_sidecar_message(sidecar["parameters"]["jsCode"])
+    )
+
+    dedupe = node_by_name(workflow, "Deduplicate Notify By QueryId")
+    dedupe["parameters"]["jsCode"] = patch_dedupe_node(dedupe["parameters"]["jsCode"])
+
+    should_send = node_by_name(workflow, "Should Send Sidecar?")
+    should_send["parameters"]["conditions"]["boolean"][0]["value1"] = (
+        "={{ Boolean($json.sidecarShouldSend && $json.sidecarPayload && "
+        "((($json.sidecarPayload.email || $json.sidecarPayload.chat_id || $json.sidecarPayload.chatId) "
+        "&& ($json.sidecarPayload.text || $json.sidecarPayload.data || $json.sidecarPayload.message)))) }}"
+    )
+
+    send_sidecar = node_by_name(workflow, "Send Sidecar Alert")
+    send_sidecar["type"] = "n8n-nodes-base.code"
+    send_sidecar["typeVersion"] = 2
+    send_sidecar["parameters"] = {"jsCode": KN_CHAT_SEND_JS}
+    send_sidecar["notesInFlow"] = True
+    send_sidecar["notes"] = (
+        "KN Chat Bot 发送节点。个人通知通过 resolveUserId(email) 获取 user_id 后 sendMessage；"
+        "群通知需要 sidecarPayload.chat_id。Bot token 不写入 JSON，请在 n8n 环境变量 KN_CHAT_BOT_TOKEN 中配置。"
+    )
 
     merge_notify_target = node_by_name(workflow, "Merge Notify Target")
     merge_notify_target["parameters"]["jsCode"] = patch_merge_notify_target(
