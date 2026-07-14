@@ -210,6 +210,43 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(meta["match_info"], "no-match")
         self.assertTrue(meta["instance_match_candidates"][0]["quality_check_task"])
 
+    def test_remote_ds_recent_instance_query_uses_time_window_without_name_prefilter(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        captured = {}
+
+        def fake_query_mysql_rows(connection, sql, timeout=180):
+            captured["sql"] = sql
+            captured["timeout"] = timeout
+            return []
+
+        original_query = module.query_mysql_rows
+        module.query_mysql_rows = fake_query_mysql_rows
+        try:
+            _, meta = module.query_recent_instances(
+                module.MysqlConnection("host", "3306", "db", "user", "pwd"),
+                "insert into dwd.dwd_asset_main select * from hive.dwb_paimon.dwb_r2_asset",
+                alert_time="2026-07-14 10:05:00",
+                before_minutes=30,
+                after_minutes=5,
+                limit=50,
+            )
+        finally:
+            module.query_mysql_rows = original_query
+
+        sql = captured["sql"]
+        self.assertIn("ti.start_time <= '2026-07-14 10:10:00'", sql)
+        self.assertIn("ti.end_time IS NULL OR ti.end_time >= '2026-07-14 09:35:00'", sql)
+        self.assertIn("TIMESTAMPDIFF(SECOND, ti.start_time, '2026-07-14 10:05:00')", sql)
+        self.assertNotIn("LOWER(ti.name) LIKE", sql)
+        self.assertEqual(meta["instance_query_mode"], "time_window_then_log_scoring")
+
     def test_sql_fingerprint_masks_literals(self):
         left = build_sql_fingerprint("select * from t where dt = '2026-07-01' and user_id = 123")
         right = build_sql_fingerprint("select * from t where dt = '2026-07-02' and user_id = 456")

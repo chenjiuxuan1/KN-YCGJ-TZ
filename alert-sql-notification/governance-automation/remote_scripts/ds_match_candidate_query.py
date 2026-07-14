@@ -162,11 +162,19 @@ LEFT JOIN t_ds_workflow_instance wi
   ON ti.workflow_instance_id = wi.id
 LEFT JOIN t_ds_project p
   ON wi.project_code = p.code
-WHERE ti.start_time >= {start_time}
-  AND ti.start_time <= {end_time}
+WHERE ti.start_time <= {end_time}
+  AND (ti.end_time IS NULL OR ti.end_time >= {start_time})
   AND ti.task_type IN ('SHELL', 'SQL')
   {instance_filter_sql}
-ORDER BY ti.start_time DESC
+ORDER BY
+  CASE
+    WHEN ti.start_time <= {center_time}
+     AND (ti.end_time IS NULL OR ti.end_time >= {center_time})
+    THEN 0
+    ELSE 1
+  END ASC,
+  ABS(TIMESTAMPDIFF(SECOND, ti.start_time, {center_time})) ASC,
+  ti.start_time DESC
 LIMIT {limit}
 """.strip()
 
@@ -413,9 +421,15 @@ def parse_datetime(value: str) -> datetime | None:
         return None
     text = text.replace("T", " ").replace("Z", "")
     text = re.sub(r"\.\d+", "", text)
-    for fmt in ("%Y-%m-%d %H:%M:%S", "%Y-%m-%d %H:%M", "%Y/%m/%d %H:%M:%S", "%Y/%m/%d %H:%M"):
+    format_candidates = (
+        ("%Y-%m-%d %H:%M:%S", 19),
+        ("%Y-%m-%d %H:%M", 16),
+        ("%Y/%m/%d %H:%M:%S", 19),
+        ("%Y/%m/%d %H:%M", 16),
+    )
+    for fmt, width in format_candidates:
         try:
-            return datetime.strptime(text[: len(fmt)], fmt)
+            return datetime.strptime(text[:width], fmt)
         except ValueError:
             continue
     return None
@@ -992,15 +1006,17 @@ def query_recent_instances(
     center = parse_datetime(alert_time) or datetime.now()
     start_time = center - timedelta(minutes=max(1, before_minutes))
     end_time = center + timedelta(minutes=max(1, after_minutes))
-    instance_filter_sql, filter_terms = build_instance_filter_sql(source_sql)
+    _, filter_terms = build_instance_filter_sql(source_sql)
     sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
+        center_time=quote_sql_literal(center.strftime("%Y-%m-%d %H:%M:%S")),
         start_time=quote_sql_literal(start_time.strftime("%Y-%m-%d %H:%M:%S")),
         end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
-        instance_filter_sql=instance_filter_sql,
+        instance_filter_sql="",
         limit=max(1, int(limit)),
     )
     rows = query_mysql_rows(connection, sql, timeout=20)
     meta = {
+        "instance_query_mode": "time_window_then_log_scoring",
         "instance_time_center": center.strftime("%Y-%m-%d %H:%M:%S"),
         "instance_time_start": start_time.strftime("%Y-%m-%d %H:%M:%S"),
         "instance_time_end": end_time.strftime("%Y-%m-%d %H:%M:%S"),
@@ -1064,10 +1080,10 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
     parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
-    parser.add_argument("--instance-limit", type=int, default=20, help="Max recent task instances to inspect after definition no-match.")
+    parser.add_argument("--instance-limit", type=int, default=50, help="Max recent task instances to inspect after definition no-match.")
     parser.add_argument("--instance-before-minutes", type=int, default=60, help="Minutes before alert time for task instance fallback.")
     parser.add_argument("--instance-after-minutes", type=int, default=10, help="Minutes after alert time for task instance fallback.")
-    parser.add_argument("--log-limit", type=int, default=5, help="Max candidate instance logs to read locally.")
+    parser.add_argument("--log-limit", type=int, default=10, help="Max candidate instance logs to read locally.")
     parser.add_argument("--log-tail-bytes", type=int, default=200000, help="Max tail bytes read from each local task log.")
     parser.add_argument("--sql-text-b64", default="", help="Base64-encoded abnormal SQL text for DB-side filtering.")
     parser.add_argument("--ds-db-host", default="", help="Optional DS metadata MySQL host override.")
