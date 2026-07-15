@@ -469,10 +469,10 @@ const staticData = typeof $getWorkflowStaticData === 'function'
   : (typeof getWorkflowStaticData === 'function' ? getWorkflowStaticData('global') : {});
 const now = Date.now();
 const dedupeWindowMs = 2 * 60 * 60 * 1000;
-if (!staticData.queryNotifyDedupe || typeof staticData.queryNotifyDedupe !== 'object') {
-  staticData.queryNotifyDedupe = {};
+if (!staticData.queryNotifyDedupeV2 || typeof staticData.queryNotifyDedupeV2 !== 'object') {
+  staticData.queryNotifyDedupeV2 = {};
 }
-const store = staticData.queryNotifyDedupe;
+const store = staticData.queryNotifyDedupeV2;
 for (const [key, value] of Object.entries(store)) {
   const timestamp = Number(value && value.sentAt ? value.sentAt : value);
   if (!Number.isFinite(timestamp) || now - timestamp > dedupeWindowMs) {
@@ -510,10 +510,10 @@ const staticData = typeof $getWorkflowStaticData === 'function'
   ? $getWorkflowStaticData('global')
   : (typeof getWorkflowStaticData === 'function' ? getWorkflowStaticData('global') : {});
 const now = Date.now();
-if (!staticData.queryNotifyDedupe || typeof staticData.queryNotifyDedupe !== 'object') {
-  staticData.queryNotifyDedupe = {};
+if (!staticData.queryNotifyDedupeV2 || typeof staticData.queryNotifyDedupeV2 !== 'object') {
+  staticData.queryNotifyDedupeV2 = {};
 }
-const store = staticData.queryNotifyDedupe;
+const store = staticData.queryNotifyDedupeV2;
 return inputItems.map((item) => {
   const base = (item && item.json) || {};
   const recipientEmail = String(base.knChatRecipientEmail || (base.sidecarPayload || {}).email || (base.sidecarPayload || {}).chat_id || (base.sidecarPayload || {}).chatId || base.notifyEmail || '').trim().toLowerCase();
