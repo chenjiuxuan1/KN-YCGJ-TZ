@@ -463,6 +463,79 @@ return [{
 }];"""
 
 
+DEDUPE_CHECK_JS = r"""const inputItems = $input.all();
+const staticData = typeof $getWorkflowStaticData === 'function'
+  ? $getWorkflowStaticData('global')
+  : (typeof getWorkflowStaticData === 'function' ? getWorkflowStaticData('global') : {});
+const now = Date.now();
+const dedupeWindowMs = 2 * 60 * 60 * 1000;
+if (!staticData.queryNotifyDedupe || typeof staticData.queryNotifyDedupe !== 'object') {
+  staticData.queryNotifyDedupe = {};
+}
+const store = staticData.queryNotifyDedupe;
+for (const [key, value] of Object.entries(store)) {
+  const timestamp = Number(value && value.sentAt ? value.sentAt : value);
+  if (!Number.isFinite(timestamp) || now - timestamp > dedupeWindowMs) {
+    delete store[key];
+  }
+}
+return inputItems.map((item) => {
+  const base = (item && item.json) || {};
+  const queryId = String(base.queryId || '').trim();
+  const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).chat_id || (base.sidecarPayload || {}).chatId || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();
+  let duplicateNotifySuppressed = false;
+  let duplicateNotifyReason = '';
+  const dedupeKey = queryId && recipientEmail ? queryId + '::' + recipientEmail : queryId;
+  if (dedupeKey) {
+    const record = store[dedupeKey];
+    const sentAt = Number(record && record.sentAt ? record.sentAt : record);
+    if (Number.isFinite(sentAt) && now - sentAt <= dedupeWindowMs) {
+      duplicateNotifySuppressed = true;
+      duplicateNotifyReason = 'duplicate queryId/email within 2h: ' + dedupeKey;
+    }
+  }
+  return { json: {
+    ...base,
+    sidecarShouldSend: Boolean(base.sidecarShouldSend) && !duplicateNotifySuppressed,
+    duplicateNotifySuppressed,
+    duplicateNotifyReason,
+    duplicateNotifyWindowMs: dedupeWindowMs,
+    duplicateNotifyKey: dedupeKey,
+  }};
+});"""
+
+
+RECORD_SUCCESSFUL_SEND_JS = r"""const inputItems = $input.all();
+const staticData = typeof $getWorkflowStaticData === 'function'
+  ? $getWorkflowStaticData('global')
+  : (typeof getWorkflowStaticData === 'function' ? getWorkflowStaticData('global') : {});
+const now = Date.now();
+if (!staticData.queryNotifyDedupe || typeof staticData.queryNotifyDedupe !== 'object') {
+  staticData.queryNotifyDedupe = {};
+}
+const store = staticData.queryNotifyDedupe;
+return inputItems.map((item) => {
+  const base = (item && item.json) || {};
+  const recipientEmail = String(base.knChatRecipientEmail || (base.sidecarPayload || {}).email || (base.sidecarPayload || {}).chat_id || (base.sidecarPayload || {}).chatId || base.notifyEmail || '').trim().toLowerCase();
+  const dedupeKey = String(base.duplicateNotifyKey || (base.queryId && recipientEmail ? base.queryId + '::' + recipientEmail : base.queryId || '')).trim();
+  const sendOk = Boolean(base.sidecarSendOk || base.knChatNotifyOk);
+  if (dedupeKey && sendOk) {
+    store[dedupeKey] = {
+      sentAt: now,
+      sessionId: String(base.sessionId || ''),
+      email: recipientEmail,
+      chatId: String(base.knChatRecipientChatId || ''),
+      provider: String(base.sidecarProvider || 'kn_chat_bot'),
+    };
+  }
+  return { json: {
+    ...base,
+    duplicateNotifyRecorded: Boolean(dedupeKey && sendOk),
+    duplicateNotifyRecordedAt: dedupeKey && sendOk ? now : null,
+  }};
+});"""
+
+
 def node_by_name(workflow: dict, name: str) -> dict:
     return next(node for node in workflow["nodes"] if node["name"] == name)
 
@@ -932,10 +1005,7 @@ def patch_kn_chat_sidecar_payload(js_code: str) -> str:
 
 
 def patch_dedupe_node(js_code: str) -> str:
-    return js_code.replace(
-        "const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();",
-        "const recipientEmail = String((base.sidecarPayload || {}).email || (base.sidecarPayload || {}).chat_id || (base.sidecarPayload || {}).chatId || (base.sidecarPayload || {}).botId || base.notifyEmail || '').trim().toLowerCase();",
-    )
+    return DEDUPE_CHECK_JS
 
 
 def patch_webhook_response(js_code: str) -> str:
@@ -950,13 +1020,31 @@ def patch_webhook_response(js_code: str) -> str:
         "    return {};\n"
         "  }\n"
         "};\n"
-        "const notify = $json || {};\n"
+        "const notifyItems = $input.all().map((item) => item && item.json ? item.json : {}).filter(Boolean);\n"
+        "const notify = notifyItems[0] || $json || {};\n"
         "const base = {\n"
         "  ...safeNodeJson('Build Langfuse Batch'),\n"
         "  ...safeNodeJson('Merge DS Task Match'),\n"
         "  ...safeNodeJson('Build Sidecar Payload'),\n"
+        "  ...notify,\n"
             "};",
     )
+    if "const notifyItems =" not in js_code:
+        js_code = js_code.replace(
+            "const notify = $json || {};\n"
+            "const base = {",
+            "const notifyItems = $input.all().map((item) => item && item.json ? item.json : {}).filter(Boolean);\n"
+            "const notify = notifyItems[0] || $json || {};\n"
+            "const base = {",
+        )
+    if "...notify," not in js_code:
+        js_code = js_code.replace(
+            "  ...safeNodeJson('Build Sidecar Payload'),\n"
+            "};",
+            "  ...safeNodeJson('Build Sidecar Payload'),\n"
+            "  ...notify,\n"
+            "};",
+        )
     if "const looksSystemAccount = (value)" not in js_code:
         js_code = js_code.replace(
             "const contactUpdateFormUrl = textOf(notifyConfig.contactUpdateFormUrl).trim();",
@@ -1072,6 +1160,27 @@ def patch_webhook_response(js_code: str) -> str:
             "  knChatSendResponse: notify.knChatSendResponse || null,\n"
             "  langfuse: {",
         )
+    if "sidecarResults:" not in js_code:
+        js_code = js_code.replace(
+            "  notifyResponse: notify,\n"
+            "  sidecarSendOk: !!notify.sidecarSendOk,\n",
+            "  notifyResponse: notify,\n"
+            "  sidecarResults: notifyItems.map((row) => ({\n"
+            "    email: textOf(row.knChatRecipientEmail || row.notifyEmail || (row.sidecarPayload || {}).email),\n"
+            "    chatId: textOf(row.knChatRecipientChatId || (row.sidecarPayload || {}).chat_id || (row.sidecarPayload || {}).chatId),\n"
+            "    sidecarSendOk: !!row.sidecarSendOk,\n"
+            "    knChatNotifyOk: !!row.knChatNotifyOk,\n"
+            "    knChatResolveOk: !!row.knChatResolveOk,\n"
+            "    knChatResolveStatusCode: row.knChatResolveStatusCode || null,\n"
+            "    knChatSendStatusCode: row.knChatSendStatusCode || null,\n"
+            "    knChatError: textOf(row.knChatError || row.error),\n"
+            "    duplicateNotifySuppressed: !!row.duplicateNotifySuppressed,\n"
+            "    duplicateNotifyReason: textOf(row.duplicateNotifyReason),\n"
+            "  })),\n"
+            "  allNotifySentOk: notifyItems.length ? notifyItems.every((row) => !!row.sidecarSendOk || !!row.knChatNotifyOk || !!row.duplicateNotifySuppressed || !!row.knChatSkipped) : false,\n"
+            "  failedNotifyEmails: notifyItems.filter((row) => row.sidecarShouldSend !== false && !row.sidecarSendOk && !row.knChatNotifyOk && !row.duplicateNotifySuppressed && !row.knChatSkipped).map((row) => textOf(row.knChatRecipientEmail || row.notifyEmail || (row.sidecarPayload || {}).email)).filter(Boolean),\n"
+            "  sidecarSendOk: !!notify.sidecarSendOk,\n",
+        )
     return force_user_only_ds_account_check(js_code)
 
 
@@ -1169,8 +1278,22 @@ def main() -> None:
     send_sidecar["notesInFlow"] = True
     send_sidecar["notes"] = (
         "KN Chat Bot 发送节点。个人通知通过 resolveUserId(email) 获取 user_id 后 sendMessage；"
-        "群通知需要 sidecarPayload.chat_id。Bot token 不写入 JSON，请在 n8n 环境变量 KN_CHAT_BOT_TOKEN 中配置。"
+        "群通知需要 sidecarPayload.chat_id。当前 Bot token 从 Notify Config 读取。"
     )
+
+    record_success_node = {
+        "parameters": {"jsCode": RECORD_SUCCESSFUL_SEND_JS},
+        "id": "record-successful-sidecar-send",
+        "name": "Record Successful Sidecar Send",
+        "type": "n8n-nodes-base.code",
+        "typeVersion": 2,
+        "position": [50880, 13824],
+        "notesInFlow": True,
+        "notes": "只有 KN Chat sendMessage 返回 ok=true 后，才写入 queryId+收件人 2 小时去重缓存，避免失败重试被误判为已发送。",
+    }
+    add_or_replace_node(workflow, record_success_node)
+    connect(workflow, "Send Sidecar Alert", ["Record Successful Sidecar Send"])
+    connect(workflow, "Record Successful Sidecar Send", ["Build Webhook Response"])
 
     merge_notify_target = node_by_name(workflow, "Merge Notify Target")
     merge_notify_target["parameters"]["jsCode"] = patch_merge_notify_target(
