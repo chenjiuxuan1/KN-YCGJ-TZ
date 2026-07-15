@@ -4,6 +4,7 @@
 from __future__ import annotations
 
 import json
+import re
 from pathlib import Path
 
 
@@ -324,36 +325,11 @@ return [{ json: {
 }}];"""
 
 
-KN_CHAT_SEND_JS = r"""const base = $json || {};
-const payload = base.sidecarPayload || {};
-const notifyConfig = base.notifyConfig || {};
+KN_CHAT_SEND_JS = r"""const inputItems = $input.all();
 const textOf = (value) => value === null || value === undefined ? '' : String(value);
 const trim = (value) => textOf(value).trim();
-const apiBase = trim(notifyConfig.knChatBotApiBase || base.knChatBotApiBase || 'https://bot.kn.chat').replace(/\/+$/, '');
-const token = trim(notifyConfig.knChatBotToken || base.knChatBotToken || (typeof process !== 'undefined' && process.env ? process.env.KN_CHAT_BOT_TOKEN : ''));
-const text = trim(payload.text || payload.data || payload.message);
-const email = trim(payload.email || base.notifyEmail);
-let chatId = payload.chat_id || payload.chatId || payload.user_id || payload.userId || '';
 
-const resultBase = {
-  ...base,
-  sidecarProvider: 'kn_chat_bot',
-  knChatApiBase: apiBase,
-  knChatRecipientEmail: email,
-  knChatRecipientChatId: chatId,
-};
-
-if (!base.sidecarShouldSend) {
-  return [{ json: { ...resultBase, knChatNotifyOk: false, knChatSkipped: true, knChatSkipReason: 'sidecarShouldSend=false' } }];
-}
-if (!token) {
-  return [{ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_BOT_TOKEN_MISSING', message: '请在 n8n 环境变量 KN_CHAT_BOT_TOKEN 中配置 KN Chat bot token。' } }];
-}
-if (!text) {
-  return [{ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_TEXT_MISSING' } }];
-}
-
-async function postKnChat(method, body) {
+async function postKnChat(apiBase, token, method, body) {
   return await this.helpers.httpRequest({
     method: 'POST',
     url: `${apiBase}/bot${token}/${method}`,
@@ -366,7 +342,7 @@ async function postKnChat(method, body) {
   });
 }
 
-async function resolveUserIdByEmail(emailValue) {
+async function resolveUserIdByEmail(apiBase, token, emailValue) {
   return await this.helpers.httpRequest({
     method: 'POST',
     url: `${apiBase}/bot${token}/resolveUserId?email=${encodeURIComponent(emailValue)}`,
@@ -406,61 +382,96 @@ const pickChatId = (body) => {
   return visit(body);
 };
 
-let resolveResponse = null;
-let resolveStatusCode = null;
-if (!chatId && email) {
-  resolveResponse = await resolveUserIdByEmail.call(this, email);
-  resolveStatusCode = resolveResponse.statusCode || resolveResponse.status || null;
-  chatId = pickChatId(resolveResponse.body || '');
-}
+const results = [];
+for (const item of inputItems) {
+  const base = (item && item.json) || {};
+  const payload = base.sidecarPayload || {};
+  const notifyConfig = base.notifyConfig || {};
+  const apiBase = trim(notifyConfig.knChatBotApiBase || base.knChatBotApiBase || 'https://bot.kn.chat').replace(/\/+$/, '');
+  const token = trim(notifyConfig.knChatBotToken || base.knChatBotToken || (typeof process !== 'undefined' && process.env ? process.env.KN_CHAT_BOT_TOKEN : ''));
+  const text = trim(payload.text || payload.data || payload.message);
+  const email = trim(payload.email || base.notifyEmail);
+  let chatId = payload.chat_id || payload.chatId || payload.user_id || payload.userId || '';
 
-if (!chatId) {
-  const resolveBody = resolveResponse && resolveResponse.body;
-  return [{
+  const resultBase = {
+    ...base,
+    sidecarProvider: 'kn_chat_bot',
+    knChatApiBase: apiBase,
+    knChatRecipientEmail: email,
+    knChatRecipientChatId: chatId,
+  };
+
+  if (!base.sidecarShouldSend) {
+    results.push({ json: { ...resultBase, knChatNotifyOk: false, knChatSkipped: true, knChatSkipReason: 'sidecarShouldSend=false' } });
+    continue;
+  }
+  if (!token) {
+    results.push({ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_BOT_TOKEN_MISSING', message: '请在 Notify Config 中配置 knChatBotToken，或在 n8n 环境变量 KN_CHAT_BOT_TOKEN 中配置 KN Chat bot token。' } });
+    continue;
+  }
+  if (!text) {
+    results.push({ json: { ...resultBase, knChatNotifyOk: false, sidecarSendOk: false, knChatError: 'KN_CHAT_TEXT_MISSING' } });
+    continue;
+  }
+
+  let resolveResponse = null;
+  let resolveStatusCode = null;
+  if (!chatId && email) {
+    resolveResponse = await resolveUserIdByEmail.call(this, apiBase, token, email);
+    resolveStatusCode = resolveResponse.statusCode || resolveResponse.status || null;
+    chatId = pickChatId(resolveResponse.body || '');
+  }
+
+  if (!chatId) {
+    const resolveBody = resolveResponse && resolveResponse.body;
+    results.push({
+      json: {
+        ...resultBase,
+        knChatNotifyOk: false,
+        sidecarSendOk: false,
+        knChatError: 'KN_CHAT_CHAT_ID_MISSING',
+        knChatResolveResponse: resolveBody,
+        knChatResolveStatusCode: resolveStatusCode,
+        knChatResolveOk: false,
+        knChatResolveMode: 'query',
+        message: 'KN Chat 发送失败：缺少 chat_id；个人通知需邮箱可 resolveUserId，群通知需配置群 chat_id。若 resolveUserId 返回用户不存在，通常需要该用户先和机器人对话 /start。'
+      }
+    });
+    continue;
+  }
+
+  const sendBody = {
+    chat_id: chatId,
+    text,
+    disable_web_page_preview: true,
+  };
+  const sendResponse = await postKnChat.call(this, apiBase, token, 'sendMessage', sendBody);
+  const sendBodyResult = sendResponse.body || {};
+  const ok = !!sendBodyResult.ok;
+  const sendStatusCode = sendResponse.statusCode || sendResponse.status || null;
+
+  results.push({
     json: {
       ...resultBase,
-      knChatNotifyOk: false,
-      sidecarSendOk: false,
-      knChatError: 'KN_CHAT_CHAT_ID_MISSING',
-      knChatResolveResponse: resolveBody,
+      sidecarChannel: base.sidecarChannel || 'kn_chat_bot',
+      sidecarUrl: `${apiBase}/bot<TOKEN>/sendMessage`,
+      sidecarPayload: sendBody,
+      knChatRecipientChatId: chatId,
+      knChatResolveResponse: resolveResponse && resolveResponse.body,
       knChatResolveStatusCode: resolveStatusCode,
-      knChatResolveOk: false,
+      knChatResolveOk: Boolean(chatId),
       knChatResolveMode: 'query',
-      message: 'KN Chat 发送失败：缺少 chat_id；个人通知需邮箱可 resolveUserId，群通知需配置群 chat_id。若 resolveUserId 返回用户不存在，通常需要该用户先和机器人对话 /start。'
+      knChatSendResponse: sendBodyResult,
+      knChatSendStatusCode: sendStatusCode,
+      knChatSendDescription: sendBodyResult.description || '',
+      notifyResponse: sendBodyResult,
+      knChatNotifyOk: ok,
+      sidecarSendOk: ok,
+      error: ok ? null : (sendBodyResult.description || sendBodyResult.error_code || 'KN_CHAT_SEND_FAILED'),
     }
-  }];
+  });
 }
-
-const sendBody = {
-  chat_id: chatId,
-  text,
-  disable_web_page_preview: true,
-};
-const sendResponse = await postKnChat.call(this, 'sendMessage', sendBody);
-const sendBodyResult = sendResponse.body || {};
-const ok = !!sendBodyResult.ok;
-const sendStatusCode = sendResponse.statusCode || sendResponse.status || null;
-
-return [{
-  json: {
-    ...resultBase,
-    sidecarChannel: base.sidecarChannel || 'kn_chat_bot',
-    sidecarUrl: `${apiBase}/bot<TOKEN>/sendMessage`,
-    sidecarPayload: sendBody,
-    knChatRecipientChatId: chatId,
-    knChatResolveResponse: resolveResponse && resolveResponse.body,
-    knChatResolveStatusCode: resolveStatusCode,
-    knChatResolveOk: Boolean(chatId),
-    knChatResolveMode: 'query',
-    knChatSendResponse: sendBodyResult,
-    knChatSendStatusCode: sendStatusCode,
-    knChatSendDescription: sendBodyResult.description || '',
-    notifyResponse: sendBodyResult,
-    knChatNotifyOk: ok,
-    sidecarSendOk: ok,
-    error: ok ? null : (sendBodyResult.description || sendBodyResult.error_code || 'KN_CHAT_SEND_FAILED'),
-  }
-}];"""
+return results;"""
 
 
 DEDUPE_CHECK_JS = r"""const inputItems = $input.all();
@@ -835,6 +846,7 @@ def patch_notify_config(js_code: str) -> str:
     ]
     for old, new in legacy_replacements:
         js_code = js_code.replace(old, new)
+    js_code = re.sub(r"knChatBotToken:\s*'[^']*'", "knChatBotToken: ''", js_code)
     if "knChatBotApiBase" not in js_code:
         js_code = js_code.replace(
             "  contactUpdateFormUrl: 'https://docs.google.com/forms/d/e/1FAIpQLSemG0t7I77-t7z0_mKit8E6UIPtz6mXEfeyTGQKrjwL-h7ykQ/viewform?usp=publish-editor',",

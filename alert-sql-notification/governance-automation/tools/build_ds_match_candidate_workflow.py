@@ -344,12 +344,31 @@ ALERT_TIME='{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""
 ALERT_HOST_IP='{{{{$json.hostIp || ($json.hostIps || []).join(",") || ""}}}}'
 
 ARGS=(--country {shlex.quote(country)})
-[ -n "\\$SQL_TEXT_B64" ] && ARGS+=("--sql-text-b64" "\\$SQL_TEXT_B64")
-[ -n "\\$ALERT_TIME" ] && ARGS+=("--alert-time" "\\$ALERT_TIME")
-[ -n "\\$ALERT_HOST_IP" ] && ARGS+=("--alert-host-ip" "\\$ALERT_HOST_IP")
+normalize_optional_arg() {{
+  printf '%s' "\\$1" | tr -d '\\r' | sed 's/^[[:space:]]*//;s/[[:space:]]*$//'
+}}
+
+is_present_arg() {{
+  case "\\$1" in
+    ""|"null"|"undefined") return 1 ;;
+    *) return 0 ;;
+  esac
+}}
+
+append_optional_arg() {{
+  key="\\$1"
+  value="\\$(normalize_optional_arg "\\$2")"
+  if is_present_arg "\\$value"; then
+    ARGS+=("\\$key" "\\$value")
+  fi
+}}
+
+append_optional_arg "--sql-text-b64" "\\$SQL_TEXT_B64"
+append_optional_arg "--alert-time" "\\$ALERT_TIME"
+append_optional_arg "--alert-host-ip" "\\$ALERT_HOST_IP"
 
 if python3 "\\$SCRIPT" --help 2>&1 | grep -q -- '--query-id'; then
-  [ -n "\\$QUERY_ID" ] && ARGS+=("--query-id" "\\$QUERY_ID")
+  append_optional_arg "--query-id" "\\$QUERY_ID"
   python3 "\\$SCRIPT" "\\${{ARGS[@]}}"
 else
   echo "DS_MATCH_QUERY_ID_ARG_UNSUPPORTED: remote script is old, running without --query-id" >&2
