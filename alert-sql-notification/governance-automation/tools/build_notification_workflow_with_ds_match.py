@@ -18,13 +18,21 @@ INPUT_CANDIDATES = [
 OUTPUT = ROOT / "outputs" / "sql优化_部门账号联系人通知_DS匹配增强版.json"
 
 
+SYSTEM_ACCOUNT_PREFIX_RE = r"/^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/"
+SYSTEM_ACCOUNT_EXACT_RE = r"/^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/"
+
+
 DS_MATCH_GATE_EXPRESSION = """={{ (() => {
   const base = $json || {};
   const evidence = base.evidence || {};
   const queryContext = evidence.queryContext || {};
   const alert = evidence.alert || {};
   const norm = (value) => String(value || '').trim().toLowerCase();
-  const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(norm(value));
+  const looksSystemAccount = (value) => {
+    const account = norm(value);
+    return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(account)
+      || /^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/.test(account);
+  };
   const allowedIps = new Set([
     '10.20.47.14', '10.20.48.14', '10.20.49.14',
     '192.168.21.236',
@@ -75,7 +83,9 @@ const base = safeFirst('Execute Skill Prep') || {};
 const inputRows = $input.all().map((item) => item.json || {}).filter((row) => row && Object.keys(row).length > 0);
 
 function looksSystemAccount(value) {
-  return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(String(value || '').trim().toLowerCase());
+  const account = String(value || '').trim().toLowerCase();
+  return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(account)
+    || /^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/.test(account);
 }
 
 function shouldMatchDsForAccount(row) {
@@ -356,24 +366,67 @@ async function postKnChat(method, body) {
   });
 }
 
+async function resolveUserIdByEmail(emailValue) {
+  return await this.helpers.httpRequest({
+    method: 'POST',
+    url: `${apiBase}/bot${token}/resolveUserId?email=${encodeURIComponent(emailValue)}`,
+    json: true,
+    returnFullResponse: true,
+    timeout: 15000,
+    ignoreHttpStatusErrors: true,
+  });
+}
+
+const pickChatId = (body) => {
+  const seen = new Set();
+  const visit = (value) => {
+    if (value === null || value === undefined) return '';
+    if (typeof value === 'string' || typeof value === 'number') {
+      const text = String(value).trim();
+      return /^\d+$/.test(text) ? text : '';
+    }
+    if (typeof value !== 'object' || seen.has(value)) return '';
+    seen.add(value);
+    for (const key of ['user_id', 'userId', 'chat_id', 'chatId', 'id']) {
+      const direct = visit(value[key]);
+      if (direct) return direct;
+    }
+    for (const key of ['result', 'data', 'user', 'chat']) {
+      const nested = visit(value[key]);
+      if (nested) return nested;
+    }
+    if (Array.isArray(value)) {
+      for (const item of value) {
+        const nested = visit(item);
+        if (nested) return nested;
+      }
+    }
+    return '';
+  };
+  return visit(body);
+};
+
 let resolveResponse = null;
+let resolveStatusCode = null;
 if (!chatId && email) {
-  resolveResponse = await postKnChat.call(this, 'resolveUserId', { email });
-  const resolveBody = resolveResponse.body || {};
-  if (resolveBody.ok && resolveBody.result && resolveBody.result.user_id) {
-    chatId = resolveBody.result.user_id;
-  }
+  resolveResponse = await resolveUserIdByEmail.call(this, email);
+  resolveStatusCode = resolveResponse.statusCode || resolveResponse.status || null;
+  chatId = pickChatId(resolveResponse.body || '');
 }
 
 if (!chatId) {
+  const resolveBody = resolveResponse && resolveResponse.body;
   return [{
     json: {
       ...resultBase,
       knChatNotifyOk: false,
       sidecarSendOk: false,
       knChatError: 'KN_CHAT_CHAT_ID_MISSING',
-      knChatResolveResponse: resolveResponse && resolveResponse.body,
-      message: 'KN Chat 发送失败：缺少 chat_id；个人通知需邮箱可 resolveUserId，群通知需配置群 chat_id。'
+      knChatResolveResponse: resolveBody,
+      knChatResolveStatusCode: resolveStatusCode,
+      knChatResolveOk: false,
+      knChatResolveMode: 'query',
+      message: 'KN Chat 发送失败：缺少 chat_id；个人通知需邮箱可 resolveUserId，群通知需配置群 chat_id。若 resolveUserId 返回用户不存在，通常需要该用户先和机器人对话 /start。'
     }
   }];
 }
@@ -386,6 +439,7 @@ const sendBody = {
 const sendResponse = await postKnChat.call(this, 'sendMessage', sendBody);
 const sendBodyResult = sendResponse.body || {};
 const ok = !!sendBodyResult.ok;
+const sendStatusCode = sendResponse.statusCode || sendResponse.status || null;
 
 return [{
   json: {
@@ -395,7 +449,12 @@ return [{
     sidecarPayload: sendBody,
     knChatRecipientChatId: chatId,
     knChatResolveResponse: resolveResponse && resolveResponse.body,
+    knChatResolveStatusCode: resolveStatusCode,
+    knChatResolveOk: Boolean(chatId),
+    knChatResolveMode: 'query',
     knChatSendResponse: sendBodyResult,
+    knChatSendStatusCode: sendStatusCode,
+    knChatSendDescription: sendBodyResult.description || '',
     notifyResponse: sendBodyResult,
     knChatNotifyOk: ok,
     sidecarSendOk: ok,
@@ -438,6 +497,28 @@ def connect_if(workflow: dict, source: str, true_target: str, false_target: str)
 
 def force_user_only_ds_account_check(js_code: str) -> str:
     """Remove legacy executor/account fallbacks from DS-match account checks."""
+    replacements = {
+        "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());":
+            "const looksSystemAccount = (value) => {\n"
+            "  const account = sanitize(value).toLowerCase();\n"
+            "  return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(account)\n"
+            "    || /^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/.test(account);\n"
+            "};",
+        "const looksSystemAccount = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(textOf(value).trim().toLowerCase());":
+            "const looksSystemAccount = (value) => {\n"
+            "  const account = textOf(value).trim().toLowerCase();\n"
+            "  return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(account)\n"
+            "    || /^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/.test(account);\n"
+            "};",
+        "const looks = (value) => /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(sanitize(value).toLowerCase());":
+            "const looks = (value) => {\n"
+            "    const account = sanitize(value).toLowerCase();\n"
+            "    return /^(e|u|a|ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)_/.test(account)\n"
+            "      || /^(ods|dw|dwd|dws|dwb|ads|dm|tmp|test|admin|deploy|bigdata|data|bi|ds|etl|sync|load|app)$/.test(account);\n"
+            "  };",
+    }
+    for old, new in replacements.items():
+        js_code = js_code.replace(old, new)
     legacy_helper_patterns = [
         (
             "  if (userValue) return looksSystemAccount(userValue);\n"
@@ -634,10 +715,36 @@ def patch_sidecar_message(js_code: str) -> str:
 
 
 def patch_merge_notify_target(js_code: str) -> str:
-    return js_code.replace(
+    js_code = js_code.replace(
         'const userEmailOverrides = {"alyssali":"Alyssali@weidu.co"};',
         'const userEmailOverrides = {"alyssali":"Alyssali@weidu.co","pengchengzhou":"pengchengzhou@weidu.co"};',
     )
+    if "requestForceNotifyEmails" not in js_code:
+        js_code = js_code.replace(
+            "const fallbackEmail = config.fallbackEmail || 'jiangchuanchen@kn.group';\n"
+            "const forceTestEmail = !!config.forceTestEmail;",
+            "const fallbackEmail = config.fallbackEmail || 'jiangchuanchen@kn.group';\n"
+            "const splitEmails = (value) => String(value || '').split(/[\\s,;；，]+/).map(normalizeEmail).filter((email) => /@/.test(email));\n"
+            "const requestForceNotifyEmails = uniq([\n"
+            "  ...splitEmails(webhookBody.forceNotifyEmail),\n"
+            "  ...(Array.isArray(webhookBody.forceNotifyEmails) ? webhookBody.forceNotifyEmails.flatMap(splitEmails) : []),\n"
+            "]);\n"
+            "const forceTestEmail = !!config.forceTestEmail;",
+        )
+        js_code = js_code.replace(
+            "if (forceTestEmail) {\n"
+            "  finalEmails = [fallbackEmail];\n"
+            "  notifyTargetSource = 'force_test_email';\n"
+            "} else if (mappedEmails.length) {",
+            "if (requestForceNotifyEmails.length) {\n"
+            "  finalEmails = requestForceNotifyEmails;\n"
+            "  notifyTargetSource = 'request_force_notify_email';\n"
+            "} else if (forceTestEmail) {\n"
+            "  finalEmails = [fallbackEmail];\n"
+            "  notifyTargetSource = 'force_test_email';\n"
+            "} else if (mappedEmails.length) {",
+        )
+    return js_code
 
 
 def patch_notify_config(js_code: str) -> str:
@@ -666,6 +773,68 @@ def patch_notify_config(js_code: str) -> str:
             "  mexicoAifoxGroupChatId: '',",
         )
     return js_code
+
+
+def patch_special_group_ds_missing_cc(js_code: str) -> str:
+    """Keep special group routing, but also send DS-missing CC as a personal KN Chat message."""
+    start = js_code.find("if (matchedSpecialGroupRule) {")
+    end = js_code.find("\nconst payloads = notifyEmails.map((email) => {", start)
+    if start < 0 or end < 0 or "sidecarChannel: row.channel" in js_code[start:end]:
+        return js_code
+
+    replacement = """if (matchedSpecialGroupRule) {
+  const groupPayload = {
+    chat_id: matchedSpecialGroupRule.chatId,
+    text: data,
+    legacyBotId: matchedSpecialGroupRule.botId,
+    mentions: []
+  };
+  const dsMissingCcEmail = sanitize(notifyConfig.dsMissingCcEmail || notifyConfig.fallbackEmail || 'jiangchuanchen@kn.group');
+  const shouldSendDsMissingCc = Boolean(base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base) && dsMissingCcEmail);
+  const rows = [{
+    notifyEmail: notifyEmails.join(','),
+    channel: matchedSpecialGroupRule.channel,
+    payload: groupPayload,
+    shouldSend: Boolean(matchedSpecialGroupRule.chatId && data.trim()),
+  }];
+  if (shouldSendDsMissingCc) {
+    rows.push({
+      notifyEmail: dsMissingCcEmail,
+      channel: 'ds_missing_cc',
+      payload: { email: dsMissingCcEmail, text: data },
+      shouldSend: Boolean(data.trim()),
+    });
+  }
+  const groupFlags = {
+    operationGroupNotify: false,
+    weiduGroupNotify: false,
+    mexicoAifoxGroupNotify: false,
+  };
+  groupFlags[matchedSpecialGroupRule.flag] = true;
+  return rows.map((row) => ({
+    json: {
+      ...base,
+      ...groupFlags,
+      notifyEmail: row.notifyEmail,
+      notifyEmails,
+      dsTaskMatchRequired: !!base.dsTaskMatchRequired,
+      dsTaskMatchMissingNeedsRecord: !!base.dsTaskMatchMissingNeedsRecord && shouldMatchDsForAccount(base),
+      dsTaskMissingNotice: sanitize(base.dsTaskMissingNotice),
+      sidecarShouldSend: row.shouldSend,
+      sidecarChannel: row.channel,
+      sidecarUrl: matchedSpecialGroupRule.url,
+      sidecarPayload: row.payload,
+      sidecarPayloads: rows.map((item) => item.payload),
+      sidecarRecipientCount: rows.length,
+      [matchedSpecialGroupRule.reasonKey]: matchedSpecialGroupRule.reason,
+      [matchedSpecialGroupRule.signalsKey]: matchedSpecialGroupRule.signals,
+      specialGroupRouteMatched: true,
+      specialGroupRouteChannel: matchedSpecialGroupRule.channel,
+    }
+  }));
+}
+"""
+    return js_code[:start] + replacement + js_code[end:]
 
 
 def patch_kn_chat_sidecar_payload(js_code: str) -> str:
@@ -759,7 +928,7 @@ def patch_kn_chat_sidecar_payload(js_code: str) -> str:
     ]
     for old, new in replacements:
         js_code = js_code.replace(old, new)
-    return js_code
+    return patch_special_group_ds_missing_cc(js_code)
 
 
 def patch_dedupe_node(js_code: str) -> str:
@@ -883,6 +1052,26 @@ def patch_webhook_response(js_code: str) -> str:
             "    dsTaskMatchConfidence: textOf(base.dsTaskMatchConfidence),\n"
             "    dsTaskMatchTables: base.dsTaskMatchTables || [],",
         )
+    if "knChatResolveOk:" not in js_code:
+        js_code = js_code.replace(
+            "  notifyResponse: notify,\n"
+            "  langfuse: {",
+            "  notifyResponse: notify,\n"
+            "  sidecarSendOk: !!notify.sidecarSendOk,\n"
+            "  sidecarProvider: textOf(notify.sidecarProvider || base.sidecarProvider),\n"
+            "  knChatNotifyOk: !!notify.knChatNotifyOk,\n"
+            "  knChatRecipientEmail: textOf(notify.knChatRecipientEmail || base.notifyEmail),\n"
+            "  knChatRecipientChatId: textOf(notify.knChatRecipientChatId),\n"
+            "  knChatResolveOk: !!notify.knChatResolveOk,\n"
+            "  knChatResolveMode: textOf(notify.knChatResolveMode),\n"
+            "  knChatResolveStatusCode: notify.knChatResolveStatusCode || null,\n"
+            "  knChatSendStatusCode: notify.knChatSendStatusCode || null,\n"
+            "  knChatSendDescription: textOf(notify.knChatSendDescription),\n"
+            "  knChatError: textOf(notify.knChatError || notify.error),\n"
+            "  knChatResolveResponse: notify.knChatResolveResponse || null,\n"
+            "  knChatSendResponse: notify.knChatSendResponse || null,\n"
+            "  langfuse: {",
+        )
     return force_user_only_ds_account_check(js_code)
 
 
@@ -921,7 +1110,7 @@ def main() -> None:
             },
             "workflowInputs": {
                 "mappingMode": "defineBelow",
-                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || $json.alertTime || \"\", \"hostIp\": $json.hostIp || $json.clientIp || $json.queryHost || ((($json.evidence || {}).queryContext || {}).hostIp) || ((($json.evidence || {}).queryContext || {}).clientIp) || ((($json.evidence || {}).alert || {}).hostIp) || ((($json.evidence || {}).alert || {}).clientIp) || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}",
+                "value": "={{ { \"cluster\": $json.cluster || \"\", \"country\": $json.country || \"\", \"queryId\": $json.queryId || \"\", \"user\": $json.user || \"\", \"executor\": $json.executor || \"\", \"alertTime\": (($json.evidence || {}).alert || {}).alertTime || (($json.evidence || {}).alert || {}).startTime || (($json.evidence || {}).alert || {}).queryStartTime || (($json.evidence || {}).queryContext || {}).startTime || (($json.evidence || {}).queryContext || {}).queryStartTime || $json.alertTime || $json.startTime || $json.queryStartTime || \"\", \"hostIp\": $json.hostIp || $json.clientIp || $json.queryHost || ((($json.evidence || {}).queryContext || {}).hostIp) || ((($json.evidence || {}).queryContext || {}).clientIp) || ((($json.evidence || {}).alert || {}).hostIp) || ((($json.evidence || {}).alert || {}).clientIp) || \"\", \"message\": (($json.evidence || {}).alert || {}).message || $json.message || $json.rawMessage || \"\", \"rawMessage\": (($json.evidence || {}).alert || {}).rawMessage || $json.rawMessage || \"\", \"sqlText\": ((($json.evidence || {}).queryContext || {}).sqlText) || $json.sqlText || $json.originalSql || \"\" } }}",
             },
             "options": {},
         },

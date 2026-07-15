@@ -114,6 +114,26 @@ function collectStrings(value, seen = new Set()) {
 function extractIps(value) {
   return String(value || '').match(/\b(?:\d{1,3}\.){3}\d{1,3}\b/g) || [];
 }
+function firstText(...values) {
+  for (const value of values) {
+    const text = String(value || '').trim();
+    if (text) return text;
+  }
+  return '';
+}
+function extractAlertTimeFromText(value) {
+  const text = String(value || '');
+  const patterns = [
+    /(?:开始时间|查询开始时间|start_time|startTime)\s*[:：]\s*(\d{4}[-/]\d{2}[-/]\d{2}[ T]\d{2}:\d{2}:\d{2})/i,
+    /(?:告警时间|触发时间|alert_time|alertTime)\s*[:：]\s*(\d{4}[-/]\d{2}[-/]\d{2}[ T]\d{2}:\d{2}:\d{2})/i,
+    /\b(\d{4}[-/]\d{2}[-/]\d{2}[ T]\d{2}:\d{2}:\d{2})\b/,
+  ];
+  for (const pattern of patterns) {
+    const match = text.match(pattern);
+    if (match) return match[1].replace('T', ' ');
+  }
+  return '';
+}
 const evidence = raw.evidence || {};
 const queryContext = evidence.queryContext || {};
 const alert = evidence.alert || {};
@@ -126,7 +146,14 @@ const hostTexts = [
 ];
 const hostIps = Array.from(new Set(hostTexts.flatMap(extractIps)));
 const hostIp = String(raw.hostIp || raw.clientIp || raw.queryHost || hostIps[0] || '').trim();
-return [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64, hostIp, hostIps } }];"""
+const timeTexts = [
+  raw.alertTime, raw.startTime, raw.queryStartTime, raw.queryStartAt, raw.beginTime,
+  queryContext.alertTime, queryContext.startTime, queryContext.queryStartTime, queryContext.queryStartAt, queryContext.beginTime,
+  alert.alertTime, alert.startTime, alert.queryStartTime, alert.queryStartAt, alert.beginTime,
+];
+const messageTexts = [raw.message, raw.rawMessage, alert.message, alert.rawMessage, queryContext.message, queryContext.rawMessage];
+const alertTime = firstText(...timeTexts) || extractAlertTimeFromText(messageTexts.join('\n'));
+return [{ json: { ...raw, country, request_id: requestId, sqlText, sqlTextBase64, hostIp, hostIps, alertTime } }];"""
 
 
 PARSE_JS = r"""const raw = $json || {};
@@ -311,7 +338,23 @@ def remote_command(template: str, country: str) -> str:
     inner = f"""{candidate_query_command()}
 {exports}
 
-python3 {shlex.quote(REMOTE_SCRIPT)} --country {shlex.quote(country)} --sql-text-b64 '{{{{$json.sqlTextBase64 || ""}}}}' --alert-time '{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}' --alert-host-ip '{{{{$json.hostIp || ($json.hostIps || []).join(",") || ""}}}}'
+QUERY_ID='{{{{$json.queryId || $json.query_id || ""}}}}'
+SQL_TEXT_B64='{{{{$json.sqlTextBase64 || ""}}}}'
+ALERT_TIME='{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}'
+ALERT_HOST_IP='{{{{$json.hostIp || ($json.hostIps || []).join(",") || ""}}}}'
+
+ARGS=(--country {shlex.quote(country)})
+[ -n "\\$SQL_TEXT_B64" ] && ARGS+=("--sql-text-b64" "\\$SQL_TEXT_B64")
+[ -n "\\$ALERT_TIME" ] && ARGS+=("--alert-time" "\\$ALERT_TIME")
+[ -n "\\$ALERT_HOST_IP" ] && ARGS+=("--alert-host-ip" "\\$ALERT_HOST_IP")
+
+if python3 "\\$SCRIPT" --help 2>&1 | grep -q -- '--query-id'; then
+  [ -n "\\$QUERY_ID" ] && ARGS+=("--query-id" "\\$QUERY_ID")
+  python3 "\\$SCRIPT" "\\${{ARGS[@]}}"
+else
+  echo "DS_MATCH_QUERY_ID_ARG_UNSUPPORTED: remote script is old, running without --query-id" >&2
+  python3 "\\$SCRIPT" "\\${{ARGS[@]}}"
+fi
 """
     return template.replace(
         "cd /root/ds-scheduler-gateway && python3 scripts/ds_scheduler_entry.py --country "

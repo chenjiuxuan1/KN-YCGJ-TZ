@@ -180,20 +180,20 @@ DS_TASK_INSTANCE_SQL_TEMPLATE = r"""
 SELECT
   ti.id AS task_instance_id,
   p.name AS project_name,
-  '' AS project_owner,
-  '' AS workflow_code,
-  '' AS workflow_version,
+  COALESCE(project_owner.user_name, '') AS project_owner,
+  wi.workflow_definition_code AS workflow_code,
+  wi.workflow_definition_version AS workflow_version,
   wi.name AS workflow_name,
   '' AS workflow_release_state,
-  '' AS workflow_owner,
+  COALESCE(workflow_owner.user_name, '') AS workflow_owner,
   ti.task_code AS task_code,
   ti.task_definition_version AS task_version,
   ti.name AS task_name,
   ti.task_type AS task_type,
-  '' AS task_flag,
-  '' AS task_creator,
-  '' AS script_content,
-  '' AS sql_content,
+  COALESCE(td.flag, '') AS task_flag,
+  COALESCE(task_owner.user_name, workflow_owner.user_name, '') AS task_creator,
+  COALESCE({script_content_expr}, '') AS script_content,
+  COALESCE({script_content_expr}, '') AS sql_content,
   ti.state AS instance_state,
   ti.submit_time AS instance_submit_time,
   ti.start_time AS instance_start_time,
@@ -205,6 +205,20 @@ LEFT JOIN t_ds_workflow_instance wi
   ON ti.workflow_instance_id = wi.id
 LEFT JOIN t_ds_project p
   ON wi.project_code = p.code
+LEFT JOIN t_ds_workflow_definition wd
+  ON wd.project_code = wi.project_code
+ AND wd.code = wi.workflow_definition_code
+ AND wd.version = wi.workflow_definition_version
+LEFT JOIN t_ds_task_definition td
+  ON td.project_code = wi.project_code
+ AND td.code = ti.task_code
+ AND td.version = ti.task_definition_version
+LEFT JOIN t_ds_user project_owner
+  ON project_owner.id = p.user_id
+LEFT JOIN t_ds_user workflow_owner
+  ON workflow_owner.id = wd.user_id
+LEFT JOIN t_ds_user task_owner
+  ON task_owner.id = td.user_id
 WHERE ti.start_time <= {end_time}
   AND (ti.end_time IS NULL OR ti.end_time >= {start_time})
   AND ti.task_type IN ('SHELL', 'SQL')
@@ -921,6 +935,19 @@ def count_text_hits(text: str, terms: list[str]) -> tuple[int, list[str]]:
     return len(hits), hits
 
 
+def collect_instance_text(row: dict[str, str]) -> str:
+    return " ".join(
+        [
+            str(row.get("project_name", "")),
+            str(row.get("workflow_name", "")),
+            str(row.get("task_name", "")),
+            str(row.get("script_content", "")),
+            str(row.get("sql_content", "")),
+            str(row.get("instance_log_path", "")),
+        ]
+    ).lower()
+
+
 def action_appears_in_text(action: str, text: str) -> bool:
     action_value = str(action or "").lower()
     if not action_value:
@@ -942,9 +969,13 @@ def classify_instance_confidence(
     temporary_target: bool,
     quality_check_task: bool,
     action_in_log: bool,
+    action_in_content: bool,
+    target_resource_ref: bool,
     target_name_hit_count: int,
+    target_content_hit_count: int,
     target_log_hit_count: int,
     log_hit_count: int,
+    content_hit_count: int,
     log_checked: bool,
 ) -> str:
     """Classify recent DS task instance fallback confidence conservatively.
@@ -957,13 +988,19 @@ def classify_instance_confidence(
         return "low"
     if quality_check_task:
         return "low"
-    if source_is_write and log_checked and target_log_hit_count and not action_in_log:
+    if target_resource_ref:
+        return "high"
+    if source_is_write and log_checked and target_log_hit_count and not (action_in_log or action_in_content):
         return "low"
-    if target_log_hit_count and (not source_is_write or action_in_log):
+    if target_log_hit_count and (not source_is_write or action_in_log or action_in_content):
+        return "high"
+    if target_content_hit_count and (not source_is_write or action_in_content):
         return "high"
     if target_name_hit_count:
         return "high"
-    if log_checked and log_hit_count >= 3 and (not source_is_write or action_in_log):
+    if log_checked and log_hit_count >= 3 and (not source_is_write or action_in_log or action_in_content):
+        return "medium" if temporary_target else "high"
+    if content_hit_count >= 3 and (not source_is_write or action_in_content):
         return "medium" if temporary_target else "high"
     return "low"
 
@@ -972,6 +1009,7 @@ def score_instance_matches(
     source_sql: str,
     rows: list[dict[str, str]],
     *,
+    query_id: str = "",
     log_limit: int = 5,
     log_tail_bytes: int = 200_000,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
@@ -983,12 +1021,17 @@ def score_instance_matches(
     target_terms = build_match_terms_from_tables(source_targets, max_terms=6)
     source_terms = build_match_terms_from_tables(source_tables, max_terms=20)
     all_terms = []
+    query_id_value = str(query_id or "").strip().lower()
+    if query_id_value:
+        all_terms.append(query_id_value)
     for term in target_terms + source_terms:
         if term not in all_terms:
             all_terms.append(term)
 
     scored: list[tuple[int, dict[str, str], dict[str, Any]]] = []
     for index, row in enumerate(rows):
+        content_text = collect_instance_text(row)
+        script_text = candidate_sql(row)
         identity_text = " ".join(
             [
                 str(row.get("project_name", "")),
@@ -999,6 +1042,10 @@ def score_instance_matches(
         ).lower()
         name_hit_count, name_hits = count_text_hits(identity_text, all_terms)
         target_name_hit_count, target_name_hits = count_text_hits(identity_text, target_terms)
+        content_hit_count, content_hits = count_text_hits(content_text, all_terms)
+        target_content_hit_count, target_content_hits = count_text_hits(content_text, target_terms)
+        target_resource_ref = target_resource_ref_matches(source_targets, script_text)
+        action_in_content = action_appears_in_text(source_action, script_text)
         log_hit_count = 0
         log_hits: list[str] = []
         target_log_hit_count = 0
@@ -1015,9 +1062,13 @@ def score_instance_matches(
         quality_check_task = is_quality_check_task(row)
         score = (
             target_log_hit_count * 3000
+            + target_content_hit_count * 1800
+            + (2600 if target_resource_ref else 0)
             + log_hit_count * 700
+            + content_hit_count * 450
             + target_name_hit_count * 1200
             + name_hit_count * 350
+            + (250 if action_in_content else 0)
         )
         confidence = classify_instance_confidence(
             source_action=source_action,
@@ -1025,21 +1076,30 @@ def score_instance_matches(
             temporary_target=temporary_target,
             quality_check_task=quality_check_task,
             action_in_log=action_in_log,
+            action_in_content=action_in_content,
+            target_resource_ref=target_resource_ref,
             target_name_hit_count=target_name_hit_count,
+            target_content_hit_count=target_content_hit_count,
             target_log_hit_count=target_log_hit_count,
             log_hit_count=log_hit_count,
+            content_hit_count=content_hit_count,
             log_checked=log_checked,
         )
 
         info = {
             "score": score,
             "confidence": confidence,
+            "query_id": query_id_value,
             "temporary_target": temporary_target,
             "name_hits": name_hits,
             "target_name_hits": target_name_hits,
+            "content_hits": content_hits,
+            "target_content_hits": target_content_hits,
+            "target_resource_ref": target_resource_ref,
             "quality_check_task": quality_check_task,
             "source_action": source_action,
             "source_is_write": source_is_write,
+            "action_in_content": action_in_content,
             "action_in_log": action_in_log,
             "log_checked": log_checked,
             "log_hits": log_hits,
@@ -1067,7 +1127,8 @@ def score_instance_matches(
             matched["ds_match_remote_info"] = (
                 "instance_log_or_name("
                 f"score={score},confidence={info['confidence']},"
-                f"nameHits={len(info['name_hits'])},logHits={len(info['log_hits'])})"
+                f"nameHits={len(info['name_hits'])},contentHits={len(info['content_hits'])},"
+                f"logHits={len(info['log_hits'])})"
             )
             matched["ds_match_confidence"] = str(info["confidence"])
             matched["script_content"] = matched.get("script_content") or matched.get("instance_log_path", "")
@@ -1094,11 +1155,18 @@ def query_recent_instances(
     after_minutes: int = 10,
     limit: int = 20,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
-    center = parse_datetime(alert_time) or datetime.now()
+    center = parse_datetime(alert_time)
+    if not center:
+        return [], {
+            "instance_query_mode": "skipped",
+            "instance_skip_reason": "missing-alert-time",
+            "match_info": "missing-alert-time",
+        }
     start_time = center - timedelta(minutes=max(1, before_minutes))
     end_time = center + timedelta(minutes=max(1, after_minutes))
     _, filter_terms = build_instance_filter_sql(source_sql)
     sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
+        script_content_expr=SCRIPT_CONTENT_EXPR,
         center_time=quote_sql_literal(center.strftime("%Y-%m-%d %H:%M:%S")),
         start_time=quote_sql_literal(start_time.strftime("%Y-%m-%d %H:%M:%S")),
         end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
@@ -1171,6 +1239,7 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
     parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
+    parser.add_argument("--query-id", default="", help="StarRocks query id, used as a high-quality DS log evidence term.")
     parser.add_argument("--alert-host-ip", default="", help="StarRocks alert host/client IP. DS matching only runs for allowed DS host IPs.")
     parser.add_argument("--instance-limit", type=int, default=50, help="Max recent task instances to inspect after definition no-match.")
     parser.add_argument("--instance-before-minutes", type=int, default=60, help="Minutes before alert time for task instance fallback.")
@@ -1251,6 +1320,7 @@ def main() -> None:
                 instance_matches, instance_match_meta = score_instance_matches(
                     source_sql,
                     instance_rows,
+                    query_id=args.query_id,
                     log_limit=args.log_limit,
                     log_tail_bytes=args.log_tail_bytes,
                 )
