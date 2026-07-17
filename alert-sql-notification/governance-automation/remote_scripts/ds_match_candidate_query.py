@@ -256,6 +256,7 @@ QUALITY_TASK_KEYWORDS = (
     "audit",
 )
 WRITE_ACTIONS = {"create", "insert", "update", "delete", "replace", "alter", "drop", "truncate"}
+ACCOUNT_PREFIX_RE = re.compile(r"^(?:[a-z]+_){1,4}")
 LAYER_PREFIXES = {
     "ods",
     "dwd",
@@ -552,6 +553,62 @@ def normalize_sql_text(sql: str) -> str:
     return " ".join(text.lower().split())
 
 
+def normalize_sql_template(sql: str) -> str:
+    normalized = normalize_sql_text(sql)
+    if not normalized:
+        return ""
+    normalized = re.sub(r"'(?:''|[^'])*'", "?", normalized)
+    normalized = re.sub(r'"(?:""|[^"])*"', "?", normalized)
+    normalized = re.sub(r"\b\d+(?:\.\d+)?\b", "?", normalized)
+    return " ".join(normalized.split())
+
+
+def parse_account_hints_json(value: str) -> list[str]:
+    text = str(value or "").strip()
+    if not text:
+        return []
+    try:
+        data = json.loads(text)
+    except Exception:
+        return []
+    if isinstance(data, str):
+        data = [data]
+    if not isinstance(data, list):
+        return []
+    return [str(item).strip() for item in data if str(item).strip()]
+
+
+def build_account_match_terms(primary_account: str = "", account_hints: list[str] | None = None) -> list[str]:
+    terms: list[str] = []
+    for raw_value in [primary_account, *(account_hints or [])]:
+        value = str(raw_value or "").strip().lower()
+        if not value:
+            continue
+        candidates = [value]
+        trimmed = ACCOUNT_PREFIX_RE.sub("", value).strip("_")
+        if trimmed and trimmed not in candidates:
+            candidates.append(trimmed)
+        if "_" in trimmed:
+            suffix = trimmed.split("_")[-1]
+            if len(suffix) >= 4 and suffix not in candidates:
+                candidates.append(suffix)
+        for candidate in candidates:
+            if candidate and len(candidate) >= 3 and candidate not in terms:
+                terms.append(candidate)
+    return terms[:8]
+
+
+def build_account_filter_sql(account_terms: list[str], *, columns: list[str]) -> str:
+    if not account_terms:
+        return ""
+    like_parts: list[str] = []
+    for term in account_terms:
+        escaped = term.replace("\\", "\\\\").replace("%", "\\%").replace("_", "\\_").replace("'", "''")
+        for column in columns:
+            like_parts.append(f"LOWER(COALESCE({column}, '')) LIKE '%{escaped}%' ESCAPE '\\\\'")
+    return "AND (" + "\n    OR ".join(like_parts) + ")"
+
+
 def extract_sql_tables(sql: str) -> list[str]:
     normalized = normalize_sql_text(sql)
     cte_names = {match.group(1).lower() for match in CTE_RE.finditer(normalized)}
@@ -744,6 +801,20 @@ def candidate_sql(row: dict[str, str]) -> str:
     )
 
 
+def collect_account_text(row: dict[str, str]) -> str:
+    return " ".join(
+        [
+            str(row.get("project_owner", "")),
+            str(row.get("workflow_owner", "")),
+            str(row.get("task_creator", "")),
+            str(row.get("project_name", "")),
+            str(row.get("workflow_name", "")),
+            str(row.get("task_name", "")),
+            candidate_sql(row),
+        ]
+    ).lower()
+
+
 def is_quality_check_task(row: dict[str, str]) -> bool:
     text = " ".join(
         [
@@ -755,17 +826,27 @@ def is_quality_check_task(row: dict[str, str]) -> bool:
     return any(keyword.lower() in text for keyword in QUALITY_TASK_KEYWORDS)
 
 
-def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[dict[str, str]], dict[str, Any]]:
+def pick_best_match(
+    source_sql: str,
+    rows: list[dict[str, str]],
+    *,
+    primary_account: str = "",
+    account_hints: list[str] | None = None,
+) -> tuple[list[dict[str, str]], dict[str, Any]]:
     source_action, source_tables = extract_action_tables(source_sql)
     source_targets = extract_target_tables(source_sql)
     source_is_write = source_action in {"create", "insert", "update", "delete", "replace", "alter", "drop", "truncate"}
     require_target_owner = bool(source_targets and source_is_write)
+    source_sql_normalized = normalize_sql_text(source_sql)
+    source_sql_template = normalize_sql_template(source_sql)
+    account_terms = build_account_match_terms(primary_account, account_hints)
     meta: dict[str, Any] = {
         "match_mode": "remote_weighted_target_table",
         "source_action": source_action,
         "source_target_tables": source_targets,
         "source_tables": source_tables,
         "require_target_owner": require_target_owner,
+        "account_terms": account_terms,
         "raw_candidate_count": len(rows),
         "match_info": "no-match",
     }
@@ -780,6 +861,8 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         if is_quality_check_task(row):
             continue
         row_sql = candidate_sql(row)
+        row_sql_normalized = normalize_sql_text(row_sql)
+        row_sql_template = normalize_sql_template(row_sql)
         row_action, row_tables = extract_action_tables(row_sql)
         row_targets = extract_target_tables(row_sql)
         row_target_overlap = count_table_overlap(source_targets, row_targets)
@@ -788,12 +871,20 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         action_match = row_action == source_action
         task_name_match = target_task_name_matches(source_targets, str(row.get("task_name", "")))
         resource_ref_match = target_resource_ref_matches(source_targets, row_sql)
+        sql_exact_match = bool(source_sql_normalized and row_sql_normalized and source_sql_normalized == row_sql_normalized)
+        sql_template_match = bool(
+            source_sql_template and row_sql_template and source_sql_template == row_sql_template and action_match
+        )
+        account_hit_count, account_hits = count_text_hits(collect_account_text(row), account_terms)
         score = (
-            (3000 if task_name_match else 0)
+            (5000 if sql_exact_match else 0)
+            + (3600 if sql_template_match else 0)
+            + (3000 if task_name_match else 0)
             + (2200 if resource_ref_match else 0)
             + (1200 if row_target_overlap else 0)
             + (500 if target_overlap else 0)
             + (200 if action_match else 0)
+            + (account_hit_count * 180)
             + (table_overlap * 10)
         )
         if target_overlap and row_action and not action_match:
@@ -802,8 +893,11 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
             "row_action": row_action,
             "row_tables": row_tables,
             "row_targets": row_targets,
+            "sql_exact_match": sql_exact_match,
+            "sql_template_match": sql_template_match,
             "task_name_match": task_name_match,
             "resource_ref_match": resource_ref_match,
+            "account_hits": account_hits,
             "target_overlap": target_overlap,
             "row_target_overlap": row_target_overlap,
             "table_overlap": table_overlap,
@@ -834,6 +928,9 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         meta["match_info"] = best["ds_match_remote_info"]
         meta["confidence"] = "high"
         meta["matched_tables"] = tables
+        meta["matched_sql_exact"] = True
+        meta["matched_sql_template"] = bool(source_sql_template and normalize_sql_template(candidate_sql(best)) == source_sql_template)
+        meta["matched_account_hits"] = count_text_hits(collect_account_text(best), account_terms)[1]
         return [best], meta
 
     if superset:
@@ -845,27 +942,35 @@ def pick_best_match(source_sql: str, rows: list[dict[str, str]]) -> tuple[list[d
         meta["match_info"] = best["ds_match_remote_info"]
         meta["confidence"] = "high"
         meta["matched_tables"] = tables
+        meta["matched_sql_exact"] = bool(source_sql_normalized and normalize_sql_text(candidate_sql(best)) == source_sql_normalized)
+        meta["matched_sql_template"] = bool(source_sql_template and normalize_sql_template(candidate_sql(best)) == source_sql_template)
+        meta["matched_account_hits"] = count_text_hits(collect_account_text(best), account_terms)[1]
         return [best], meta
 
     if scored:
         scored.sort(key=lambda item: item[0], reverse=True)
         best_score, best, tables, score_meta = scored[0]
         confidence = "medium" if (score_meta["task_name_match"] or score_meta["target_overlap"]) else "low"
-        if score_meta["task_name_match"] or score_meta["resource_ref_match"]:
+        if score_meta["sql_exact_match"] or score_meta["sql_template_match"]:
+            confidence = "high"
+        elif score_meta["task_name_match"] or score_meta["resource_ref_match"]:
             confidence = "high"
         elif score_meta["target_overlap"] and score_meta["table_overlap"] >= 5 and score_meta["row_action"] == source_action:
             confidence = "high"
         best["ds_match_remote_info"] = (
-            f"scored(score={int(best_score)},taskName={int(score_meta['task_name_match'])},resourceRef={int(score_meta['resource_ref_match'])},target={score_meta['target_overlap']},tables={score_meta['table_overlap']})"
+            f"scored(score={int(best_score)},sqlExact={int(score_meta['sql_exact_match'])},sqlTemplate={int(score_meta['sql_template_match'])},taskName={int(score_meta['task_name_match'])},resourceRef={int(score_meta['resource_ref_match'])},target={score_meta['target_overlap']},tables={score_meta['table_overlap']},accountHits={len(score_meta['account_hits'])})"
         )
         best["ds_match_confidence"] = confidence
         meta["match_info"] = best["ds_match_remote_info"]
         meta["confidence"] = confidence
         meta["matched_tables"] = tables
+        meta["matched_sql_exact"] = bool(score_meta["sql_exact_match"])
+        meta["matched_sql_template"] = bool(score_meta["sql_template_match"])
         meta["matched_table_overlap"] = score_meta["table_overlap"]
         meta["matched_target_overlap"] = score_meta["target_overlap"]
         meta["matched_task_name"] = bool(score_meta["task_name_match"])
         meta["matched_resource_ref"] = bool(score_meta["resource_ref_match"])
+        meta["matched_account_hits"] = score_meta["account_hits"]
         return [best], meta
 
     return [], meta
@@ -1012,14 +1117,19 @@ def score_instance_matches(
     query_id: str = "",
     log_limit: int = 5,
     log_tail_bytes: int = 200_000,
+    primary_account: str = "",
+    account_hints: list[str] | None = None,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
     source_action, _ = extract_action_tables(source_sql)
     source_is_write = source_action in WRITE_ACTIONS
     source_targets = extract_target_tables(source_sql)
     source_tables = extract_sql_tables(source_sql)
+    source_sql_normalized = normalize_sql_text(source_sql)
+    source_sql_template = normalize_sql_template(source_sql)
     temporary_target = any(is_temporary_target(table) for table in source_targets)
     target_terms = build_match_terms_from_tables(source_targets, max_terms=6)
     source_terms = build_match_terms_from_tables(source_tables, max_terms=20)
+    account_terms = build_account_match_terms(primary_account, account_hints)
     all_terms = []
     query_id_value = str(query_id or "").strip().lower()
     if query_id_value:
@@ -1032,6 +1142,8 @@ def score_instance_matches(
     for index, row in enumerate(rows):
         content_text = collect_instance_text(row)
         script_text = candidate_sql(row)
+        row_sql_normalized = normalize_sql_text(script_text)
+        row_sql_template = normalize_sql_template(script_text)
         identity_text = " ".join(
             [
                 str(row.get("project_name", "")),
@@ -1046,6 +1158,11 @@ def score_instance_matches(
         target_content_hit_count, target_content_hits = count_text_hits(content_text, target_terms)
         target_resource_ref = target_resource_ref_matches(source_targets, script_text)
         action_in_content = action_appears_in_text(source_action, script_text)
+        sql_exact_match = bool(source_sql_normalized and row_sql_normalized and source_sql_normalized == row_sql_normalized)
+        sql_template_match = bool(
+            source_sql_template and row_sql_template and source_sql_template == row_sql_template and row_sql_normalized
+        )
+        account_hit_count, account_hits = count_text_hits(collect_account_text(row), account_terms)
         log_hit_count = 0
         log_hits: list[str] = []
         target_log_hit_count = 0
@@ -1061,13 +1178,16 @@ def score_instance_matches(
 
         quality_check_task = is_quality_check_task(row)
         score = (
-            target_log_hit_count * 3000
+            (6000 if sql_exact_match else 0)
+            + (4200 if sql_template_match else 0)
+            + target_log_hit_count * 3000
             + target_content_hit_count * 1800
             + (2600 if target_resource_ref else 0)
             + log_hit_count * 700
             + content_hit_count * 450
             + target_name_hit_count * 1200
             + name_hit_count * 350
+            + account_hit_count * 200
             + (250 if action_in_content else 0)
         )
         confidence = classify_instance_confidence(
@@ -1090,7 +1210,10 @@ def score_instance_matches(
             "score": score,
             "confidence": confidence,
             "query_id": query_id_value,
+            "sql_exact_match": sql_exact_match,
+            "sql_template_match": sql_template_match,
             "temporary_target": temporary_target,
+            "account_hits": account_hits,
             "name_hits": name_hits,
             "target_name_hits": target_name_hits,
             "content_hits": content_hits,
@@ -1122,13 +1245,15 @@ def score_instance_matches(
             **info,
         }
         candidates_preview.append(preview)
+        if info["sql_exact_match"] or info["sql_template_match"]:
+            info["confidence"] = "high"
         if info["confidence"] in {"high", "medium"} and not accepted:
             matched = dict(row)
             matched["ds_match_remote_info"] = (
                 "instance_log_or_name("
-                f"score={score},confidence={info['confidence']},"
+                f"score={score},confidence={info['confidence']},sqlExact={int(info['sql_exact_match'])},sqlTemplate={int(info['sql_template_match'])},"
                 f"nameHits={len(info['name_hits'])},contentHits={len(info['content_hits'])},"
-                f"logHits={len(info['log_hits'])})"
+                f"logHits={len(info['log_hits'])},accountHits={len(info['account_hits'])})"
             )
             matched["ds_match_confidence"] = str(info["confidence"])
             matched["script_content"] = matched.get("script_content") or matched.get("instance_log_path", "")
@@ -1140,6 +1265,7 @@ def score_instance_matches(
         "instance_raw_candidate_count": len(rows),
         "instance_match_candidates": candidates_preview,
         "temporary_target_mode": temporary_target,
+        "instance_account_terms": account_terms,
         "match_info": accepted[0]["ds_match_remote_info"] if accepted else "no-match",
         "confidence": accepted[0]["ds_match_confidence"] if accepted else "",
     }
@@ -1154,6 +1280,10 @@ def query_recent_instances(
     before_minutes: int = 60,
     after_minutes: int = 10,
     limit: int = 20,
+    primary_account: str = "",
+    account_hints: list[str] | None = None,
+    precise_window_minutes: int = 0,
+    fallback_window_minutes: int = 0,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
     center = parse_datetime(alert_time)
     if not center:
@@ -1162,24 +1292,55 @@ def query_recent_instances(
             "instance_skip_reason": "missing-alert-time",
             "match_info": "missing-alert-time",
         }
-    start_time = center - timedelta(minutes=max(1, before_minutes))
-    end_time = center + timedelta(minutes=max(1, after_minutes))
     _, filter_terms = build_instance_filter_sql(source_sql)
-    sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
-        script_content_expr=SCRIPT_CONTENT_EXPR,
-        center_time=quote_sql_literal(center.strftime("%Y-%m-%d %H:%M:%S")),
-        start_time=quote_sql_literal(start_time.strftime("%Y-%m-%d %H:%M:%S")),
-        end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
-        instance_filter_sql="",
-        limit=max(1, int(limit)),
+    account_terms = build_account_match_terms(primary_account, account_hints)
+    precise_before = max(1, int(precise_window_minutes or before_minutes or 15))
+    fallback_before = max(precise_before, int(fallback_window_minutes or before_minutes or precise_before))
+    precise_after = max(1, min(max(1, int(after_minutes)), precise_before))
+    fallback_after = max(precise_after, min(max(1, int(after_minutes)), fallback_before))
+    account_filter_sql = build_account_filter_sql(
+        account_terms,
+        columns=[
+            "project_owner.user_name",
+            "workflow_owner.user_name",
+            "task_owner.user_name",
+            "p.name",
+            "wi.name",
+            "ti.name",
+            SCRIPT_CONTENT_EXPR,
+        ],
     )
+
+    def build_time_window_query(window_before: int, window_after: int, extra_filter_sql: str = "") -> tuple[str, str, str]:
+        start_time = center - timedelta(minutes=max(1, window_before))
+        end_time = center + timedelta(minutes=max(1, window_after))
+        sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
+            script_content_expr=SCRIPT_CONTENT_EXPR,
+            center_time=quote_sql_literal(center.strftime("%Y-%m-%d %H:%M:%S")),
+            start_time=quote_sql_literal(start_time.strftime("%Y-%m-%d %H:%M:%S")),
+            end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
+            instance_filter_sql=extra_filter_sql,
+            limit=max(1, int(limit)),
+        )
+        return sql, start_time.strftime("%Y-%m-%d %H:%M:%S"), end_time.strftime("%Y-%m-%d %H:%M:%S")
+
+    query_mode = "time_window_then_log_scoring"
+    sql, start_label, end_label = build_time_window_query(precise_before, precise_after, account_filter_sql)
     rows = query_mysql_rows(connection, sql, timeout=20)
+    if not rows and account_filter_sql:
+        sql, start_label, end_label = build_time_window_query(fallback_before, fallback_after, "")
+        rows = query_mysql_rows(connection, sql, timeout=20)
+        query_mode = "time_window_account_prefilter_fallback"
     meta = {
-        "instance_query_mode": "time_window_then_log_scoring",
+        "instance_query_mode": query_mode,
         "instance_time_center": center.strftime("%Y-%m-%d %H:%M:%S"),
-        "instance_time_start": start_time.strftime("%Y-%m-%d %H:%M:%S"),
-        "instance_time_end": end_time.strftime("%Y-%m-%d %H:%M:%S"),
+        "instance_time_start": start_label,
+        "instance_time_end": end_label,
         "instance_filter_terms": filter_terms,
+        "instance_account_terms": account_terms,
+        "instance_account_prefilter_used": bool(account_filter_sql),
+        "instance_precise_window_minutes": precise_before,
+        "instance_fallback_window_minutes": fallback_before,
     }
     return rows, meta
 
@@ -1240,10 +1401,14 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
     parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
     parser.add_argument("--query-id", default="", help="StarRocks query id, used as a high-quality DS log evidence term.")
+    parser.add_argument("--primary-account", default="", help="Primary abnormal SQL account, used for DS account-aware scoring.")
+    parser.add_argument("--account-hints-json", default="", help="JSON array of abnormal SQL accounts/aliases for DS matching.")
     parser.add_argument("--alert-host-ip", default="", help="StarRocks alert host/client IP. DS matching only runs for allowed DS host IPs.")
     parser.add_argument("--instance-limit", type=int, default=50, help="Max recent task instances to inspect after definition no-match.")
     parser.add_argument("--instance-before-minutes", type=int, default=60, help="Minutes before alert time for task instance fallback.")
     parser.add_argument("--instance-after-minutes", type=int, default=10, help="Minutes after alert time for task instance fallback.")
+    parser.add_argument("--precise-window-minutes", type=int, default=0, help="Preferred narrow instance matching window in minutes.")
+    parser.add_argument("--fallback-window-minutes", type=int, default=0, help="Wider fallback instance matching window in minutes.")
     parser.add_argument("--log-limit", type=int, default=10, help="Max candidate instance logs to read locally.")
     parser.add_argument("--log-tail-bytes", type=int, default=200000, help="Max tail bytes read from each local task log.")
     parser.add_argument("--sql-text-b64", default="", help="Base64-encoded abnormal SQL text for DB-side filtering.")
@@ -1299,6 +1464,7 @@ def main() -> None:
             connection = configured
         wattrel_connection = discover_wattrel_connection(args)
         source_sql = decode_base64_text(args.sql_text_b64)
+        account_hints = parse_account_hints_json(args.account_hints_json)
         script_filter_sql, filter_tables = build_script_filter_sql(source_sql)
         sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(
             limit=max(1, int(args.limit)),
@@ -1306,7 +1472,16 @@ def main() -> None:
             script_filter_sql=script_filter_sql,
         )
         rows = query_mysql_rows(connection, sql)
-        rows, match_meta = pick_best_match(source_sql, rows) if source_sql else (rows[:1], {})
+        rows, match_meta = (
+            pick_best_match(
+                source_sql,
+                rows,
+                primary_account=args.primary_account,
+                account_hints=account_hints,
+            )
+            if source_sql
+            else (rows[:1], {})
+        )
         if source_sql and not rows:
             try:
                 instance_rows, instance_query_meta = query_recent_instances(
@@ -1316,6 +1491,10 @@ def main() -> None:
                     before_minutes=args.instance_before_minutes,
                     after_minutes=args.instance_after_minutes,
                     limit=args.instance_limit,
+                    primary_account=args.primary_account,
+                    account_hints=account_hints,
+                    precise_window_minutes=args.precise_window_minutes,
+                    fallback_window_minutes=args.fallback_window_minutes,
                 )
                 instance_matches, instance_match_meta = score_instance_matches(
                     source_sql,
@@ -1323,6 +1502,8 @@ def main() -> None:
                     query_id=args.query_id,
                     log_limit=args.log_limit,
                     log_tail_bytes=args.log_tail_bytes,
+                    primary_account=args.primary_account,
+                    account_hints=account_hints,
                 )
                 match_meta = {
                     **match_meta,

@@ -143,6 +143,77 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(rows, [])
         self.assertEqual(meta["match_info"], "no-match")
 
+    def test_remote_ds_match_prefers_sql_template_and_account_hits(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        rows, meta = module.pick_best_match(
+            "insert into ads.ads_user_stat select * from dwd.dwd_user where dt = '2026-07-14' and user_id = 123",
+            [
+                {
+                    "project_name": "strategy",
+                    "workflow_name": "superset_strategy_daily",
+                    "task_name": "ads_user_stat_sync",
+                    "task_type": "SQL",
+                    "task_creator": "e_superset_strategy",
+                    "script_content": "insert into ads.ads_user_stat select * from dwd.dwd_user where dt = '2026-07-15' and user_id = 456",
+                }
+            ],
+            primary_account="e_superset_strategy",
+            account_hints=["e_superset_strategy"],
+        )
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(meta["confidence"], "high")
+        self.assertTrue(meta["matched_sql_template"])
+        self.assertIn("strategy", meta["matched_account_hits"])
+
+    def test_remote_ds_recent_instance_query_uses_account_prefilter_then_fallback(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        captured_sql: list[str] = []
+
+        def fake_query_mysql_rows(connection, sql, timeout=180):
+            captured_sql.append(sql)
+            return [] if len(captured_sql) == 1 else [{"task_name": "matched"}]
+
+        original_query = module.query_mysql_rows
+        module.query_mysql_rows = fake_query_mysql_rows
+        try:
+            rows, meta = module.query_recent_instances(
+                module.MysqlConnection("host", "3306", "db", "user", "pwd"),
+                "insert into ads.ads_user_stat select * from dwd.dwd_user",
+                alert_time="2026-07-14 10:05:00",
+                after_minutes=5,
+                limit=20,
+                primary_account="e_ds_aifox",
+                account_hints=["e_ds_aifox"],
+                precise_window_minutes=15,
+                fallback_window_minutes=60,
+            )
+        finally:
+            module.query_mysql_rows = original_query
+
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(meta["instance_query_mode"], "time_window_account_prefilter_fallback")
+        self.assertEqual(meta["instance_time_start"], "2026-07-14 09:05:00")
+        self.assertEqual(meta["instance_time_end"], "2026-07-14 10:10:00")
+        self.assertEqual(len(captured_sql), 2)
+        self.assertIn("LOWER(COALESCE(project_owner.user_name, '')) LIKE '%aifox%'", captured_sql[0])
+        self.assertIn("aifox", captured_sql[0])
+        self.assertNotIn("LIKE '%aifox%'", captured_sql[1])
+
     def test_remote_ds_instance_fallback_rejects_temporary_target_without_log_evidence(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)

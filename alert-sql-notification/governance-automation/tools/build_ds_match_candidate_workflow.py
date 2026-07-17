@@ -342,6 +342,10 @@ QUERY_ID='{{{{$json.queryId || $json.query_id || ""}}}}'
 SQL_TEXT_B64='{{{{$json.sqlTextBase64 || ""}}}}'
 ALERT_TIME='{{{{$json.alertTime || $json.startTime || $json.queryStartTime || ""}}}}'
 ALERT_HOST_IP='{{{{$json.hostIp || ($json.hostIps || []).join(",") || ""}}}}'
+PRIMARY_ACCOUNT='{{{{$json.primaryAccount || ""}}}}'
+ACCOUNT_HINTS_JSON='{{{{JSON.stringify($json.accountHints || [])}}}}'
+PRECISE_WINDOW_MINUTES='{{{{$json.preciseWindowMinutes || ""}}}}'
+FALLBACK_WINDOW_MINUTES='{{{{$json.fallbackWindowMinutes || ""}}}}'
 
 ARGS=(--country {shlex.quote(country)})
 normalize_optional_arg() {{
@@ -366,6 +370,10 @@ append_optional_arg() {{
 append_optional_arg "--sql-text-b64" "\\$SQL_TEXT_B64"
 append_optional_arg "--alert-time" "\\$ALERT_TIME"
 append_optional_arg "--alert-host-ip" "\\$ALERT_HOST_IP"
+append_optional_arg "--primary-account" "\\$PRIMARY_ACCOUNT"
+append_optional_arg "--account-hints-json" "\\$ACCOUNT_HINTS_JSON"
+append_optional_arg "--precise-window-minutes" "\\$PRECISE_WINDOW_MINUTES"
+append_optional_arg "--fallback-window-minutes" "\\$FALLBACK_WINDOW_MINUTES"
 
 if python3 "\\$SCRIPT" --help 2>&1 | grep -q -- '--query-id'; then
   append_optional_arg "--query-id" "\\$QUERY_ID"
