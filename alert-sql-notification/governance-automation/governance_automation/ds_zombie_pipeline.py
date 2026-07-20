@@ -9,13 +9,15 @@ def build_summary(
     scanned_workflows: int,
     candidates: Iterable[Dict[str, Any]],
     persisted_count: int,
-    top_limit: int = 20,
+    top_limit: int = 0,
 ) -> Dict[str, Any]:
-    if top_limit < 0 or top_limit > 100:
-        raise ValueError("top_limit must be between 0 and 100")
+    if top_limit < 0:
+        raise ValueError("top_limit must be zero or greater")
     rows: List[Dict[str, Any]] = list(candidates)
     levels = Counter(str(row.get("level") or "C") for row in rows)
-    top = sorted(rows, key=lambda row: int(row.get("score_total") or 0), reverse=True)[:top_limit]
+    top = sorted(rows, key=lambda row: int(row.get("score_total") or 0), reverse=True)
+    if top_limit:
+        top = top[:top_limit]
     return {
         "success": True,
         "batch_id": batch_id,

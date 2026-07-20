@@ -103,7 +103,8 @@ def main():
     parser.add_argument("--workflow-name", default="")
     parser.add_argument("--task-name", default="")
     parser.add_argument("--score-version", default="v1")
-    parser.add_argument("--top-limit", type=int, default=20)
+    parser.add_argument("--top-limit", type=int, default=0,
+                        help="Maximum CSV candidates to return; 0 returns all candidates.")
     parser.add_argument("--write-to-db", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

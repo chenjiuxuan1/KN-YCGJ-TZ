@@ -14,7 +14,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c={country:'th',minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:true,dryRun:false,scoreVersion:'v1',topLimit:20}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.min(100,c.topLimit)}}];"
+        "jsCode": "const c={country:'th',minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:true,dryRun:false,scoreVersion:'v1',topLimit:0}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.max(0,Number(c.topLimit)||0)}}];"
       },
       "id": "request",
       "name": "Build Manual Scan Request",
@@ -241,7 +241,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const raw=$json||{}; const out=String(raw.stdout||'').trim(); if(!out) throw new Error(String(raw.stderr||'EMPTY_STDOUT')); const p=JSON.parse(out); if(Array.isArray(p.data)||Array.isArray(p.candidates)) throw new Error('BULK_RESULT_REJECTED'); if((p.top_candidates||[]).length>100) throw new Error('TOP_LIMIT_EXCEEDED'); return [{json:p}];"
+        "jsCode": "const raw=$json||{}; const out=String(raw.stdout||'').trim(); if(!out) throw new Error(String(raw.stderr||'EMPTY_STDOUT')); const p=JSON.parse(out); if(Array.isArray(p.data)||Array.isArray(p.candidates)) throw new Error('BULK_RESULT_REJECTED'); return [{json:p}];"
       },
       "id": "summary",
       "name": "Validate Python Summary",

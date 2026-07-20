@@ -139,6 +139,14 @@ class SummaryTests(unittest.TestCase):
         self.assertNotIn("candidates", summary)
         self.assertEqual(summary["dependency_protected_count"], 25)
 
+    def test_zero_top_limit_returns_all_candidates(self):
+        candidates = [{"workflow_code": str(index), "score_total": index} for index in range(150)]
+        summary = build_summary(
+            country="th", batch_id="b1", score_version="v1", scanned_workflows=150,
+            candidates=candidates, persisted_count=0, top_limit=0,
+        )
+        self.assertEqual(len(summary["top_candidates"]), 150)
+
 
 if __name__ == "__main__":
     unittest.main()
