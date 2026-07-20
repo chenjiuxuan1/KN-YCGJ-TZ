@@ -72,9 +72,8 @@ class WorkflowTests(unittest.TestCase):
     def test_generated_workflow_preserves_country_routes_without_bulk_json(self):
         workflow = self._load_builder().build_workflow()
         names = {node["name"] for node in workflow["nodes"]}
-        form_trigger = next(node for node in workflow["nodes"] if node["name"] == "选择国家并启动扫描")
-        self.assertEqual(form_trigger["type"], "n8n-nodes-base.formTrigger")
-        self.assertEqual(len(form_trigger["parameters"]["formFields"]["values"][0]["fieldOptions"]["values"]), 6)
+        request = next(node for node in workflow["nodes"] if node["name"] == "Build Manual Scan Request")
+        self.assertIn("country:'th'", request["parameters"]["jsCode"])
         self.assertIn("按国家分流", names)
         self.assertNotIn("Build Zombie Workflow Candidates", names)
         self.assertNotIn("Parse DS Metadata Result", names)
