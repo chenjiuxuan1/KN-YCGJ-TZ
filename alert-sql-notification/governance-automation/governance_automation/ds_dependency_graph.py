@@ -65,7 +65,8 @@ def build_dependency_graph(
             graph.task_upstream[workflow][post].add(pre)
 
     for row in task_rows:
-        if str(row.get("task_type") or "").upper() != "DEPENDENT":
+        dependency_type = str(row.get("task_type") or "").upper()
+        if dependency_type not in ("DEPENDENT", "SUB_PROCESS"):
             continue
         source = str(row.get("workflow_code") or "")
         graph.scan_complete[source] = True
@@ -92,7 +93,7 @@ def build_dependency_graph(
                         "target_workflow_code": target,
                         "target_project_code": _value(item, "projectCode", "project_code"),
                         "target_task_code": _value(item, "depTaskCode", "taskCode", "task_code"),
-                        "dependency_type": "DEPENDENT",
+                        "dependency_type": dependency_type,
                         "parse_status": "SUCCESS",
                     }
                 )
@@ -102,11 +103,10 @@ def build_dependency_graph(
             graph.evidence.append(
                 {
                     "source_workflow_code": source,
-                    "dependency_type": "DEPENDENT",
+                    "dependency_type": dependency_type,
                     "parse_status": "FAILED",
                     "evidence_hash": hashlib.sha256(str(raw).encode("utf-8")).hexdigest(),
                     "error": str(exc)[:160],
                 }
             )
     return graph
-

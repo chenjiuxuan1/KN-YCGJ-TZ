@@ -4,6 +4,7 @@ from datetime import datetime, timedelta, timezone
 
 from governance_automation.ds_dependency_graph import build_dependency_graph
 from governance_automation.ds_zombie_classifier import classify_workflow
+from governance_automation.ds_zombie_dependency_policy import assess_downstream_activity
 from governance_automation.ds_zombie_models import EvidenceState, WorkflowSnapshot
 from governance_automation.ds_zombie_pipeline import build_summary
 
@@ -59,6 +60,37 @@ class DependencyGraphTests(unittest.TestCase):
         self.assertFalse(graph.scan_complete["w2"])
         self.assertEqual(graph.parse_error_count, 1)
 
+    def test_sub_process_task_builds_cross_workflow_dependency(self):
+        graph = build_dependency_graph(
+            relation_rows=[],
+            task_rows=[
+                {
+                    "workflow_code": "parent",
+                    "task_code": "sub-task",
+                    "task_type": "SUB_PROCESS",
+                    "task_params": json.dumps({"processDefinitionCode": "child"}),
+                }
+            ],
+        )
+        self.assertEqual(graph.workflow_upstream["parent"], {"child"})
+        self.assertEqual(graph.workflow_downstream["child"], {"parent"})
+        self.assertEqual(graph.evidence[0]["dependency_type"], "SUB_PROCESS")
+
+
+class DownstreamActivityTests(unittest.TestCase):
+    def test_only_scheduled_recent_or_running_downstreams_are_hard_protection(self):
+        assessment = assess_downstream_activity(
+            downstream_codes=("online", "recent", "running", "idle"),
+            workflows={
+                "online": {"schedule_active": 1, "total_runs_30d": 0, "active_instance_present": 0},
+                "recent": {"schedule_active": 0, "total_runs_30d": 1, "active_instance_present": 0},
+                "running": {"schedule_active": 0, "total_runs_30d": 0, "active_instance_present": 1},
+                "idle": {"schedule_active": 0, "total_runs_30d": 0, "active_instance_present": 0},
+            },
+        )
+        self.assertEqual(assessment.active_codes, ("online", "recent", "running"))
+        self.assertEqual(assessment.review_codes, ("idle",))
+
 
 class ZombieClassifierTests(unittest.TestCase):
     def _snapshot(self, **overrides):
@@ -104,6 +136,12 @@ class ZombieClassifierTests(unittest.TestCase):
         )
         self.assertEqual(result.level, "D")
         self.assertEqual(result.action, "KEEP_ACTIVE")
+
+    def test_online_definition_or_running_instance_blocks_decommission(self):
+        online = classify_workflow(self._snapshot(workflow_online=True))
+        running = classify_workflow(self._snapshot(active_instance_present=True))
+        self.assertEqual(online.action, "KEEP_ACTIVE")
+        self.assertEqual(running.action, "KEEP_ACTIVE")
 
     def test_unknown_access_evidence_does_not_become_absent(self):
         result = classify_workflow(

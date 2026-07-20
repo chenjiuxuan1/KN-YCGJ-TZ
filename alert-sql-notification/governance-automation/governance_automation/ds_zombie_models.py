@@ -25,7 +25,9 @@ class WorkflowSnapshot:
     total_runs_30d: Optional[int] = None
     failed_runs_30d: Optional[int] = None
     schedule_online: Optional[bool] = None
+    schedule_active: Optional[bool] = None
     workflow_online: Optional[bool] = None
+    active_instance_present: Optional[bool] = None
     instance_scan_complete: bool = False
     dependency_scan_complete: bool = False
     upstream_workflows: Tuple[str, ...] = ()
@@ -49,4 +51,3 @@ class ScoreResult:
     score_detail: Dict[str, int] = field(default_factory=dict)
     protected_by_dependency: bool = False
     protected_by_uncertainty: bool = False
-

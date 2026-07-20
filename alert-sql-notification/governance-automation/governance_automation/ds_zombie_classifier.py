@@ -43,9 +43,9 @@ def classify_workflow(
     else:
         reasons.append("运行实例证据不完整")
 
-    if snapshot.schedule_online is False:
+    if snapshot.schedule_active is False:
         detail["schedule_offline"] = 10
-        reasons.append("无有效上线调度")
+        reasons.append("无当前生效上线调度")
 
     score = sum(detail.values())
     has_downstream = bool(snapshot.downstream_workflows)
@@ -57,6 +57,12 @@ def classify_workflow(
     if snapshot.confirmed_retention:
         reasons.append("负责人已确认保留")
         return ScoreResult("D", "KEEP_CONFIRMED", score, tuple(reasons), detail)
+    if snapshot.workflow_online is True:
+        reasons.append("工作流定义仍上线")
+        return ScoreResult("D", "KEEP_ACTIVE", score, tuple(reasons), detail)
+    if snapshot.active_instance_present is True:
+        reasons.append("存在运行中或等待中的实例")
+        return ScoreResult("D", "KEEP_ACTIVE", score, tuple(reasons), detail)
     if has_downstream:
         reasons.append("存在跨工作流下游依赖")
         return ScoreResult(
@@ -80,4 +86,3 @@ def classify_workflow(
     if score >= 30:
         return ScoreResult("B", "OWNER_CONFIRMATION", score, tuple(reasons), detail)
     return ScoreResult("C", "OBSERVE", score, tuple(reasons), detail)
-

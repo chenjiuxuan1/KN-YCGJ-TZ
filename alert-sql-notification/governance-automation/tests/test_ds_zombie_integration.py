@@ -24,6 +24,8 @@ class RepositoryTests(unittest.TestCase):
         ):
             self.assertIn(table, sql)
         self.assertIn("workflow_definition_code AS workflow_code", sql)
+        self.assertIn("schedule_active", sql)
+        self.assertIn("active_instance_present", sql)
         self.assertNotIn("process_definition_code", sql)
         self.assertNotIn("DELETE ", sql.upper())
 
