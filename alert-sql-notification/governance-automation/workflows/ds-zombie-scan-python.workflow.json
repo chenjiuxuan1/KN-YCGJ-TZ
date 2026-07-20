@@ -1,0 +1,396 @@
+{
+  "name": "DS僵尸任务扫描_Python处理_直连DS库",
+  "nodes": [
+    {
+      "parameters": {},
+      "id": "manual",
+      "name": "Manual Trigger - Run Scan",
+      "type": "n8n-nodes-base.manualTrigger",
+      "typeVersion": 1,
+      "position": [
+        -900,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "jsCode": "const c={country:'th',minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:true,dryRun:false,scoreVersion:'v1',topLimit:20}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.min(100,c.topLimit)}}];"
+      },
+      "id": "request",
+      "name": "Build Manual Scan Request",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        -680,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "rules": {
+          "values": [
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "cn",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "ph",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "ine",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "mx",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "th",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            },
+            {
+              "conditions": {
+                "conditions": [
+                  {
+                    "leftValue": "={{$json.country}}",
+                    "rightValue": "pk",
+                    "operator": {
+                      "type": "string",
+                      "operation": "equals"
+                    }
+                  }
+                ]
+              }
+            }
+          ]
+        }
+      },
+      "id": "switch",
+      "name": "按国家分流",
+      "type": "n8n-nodes-base.switch",
+      "typeVersion": 3,
+      "position": [
+        -440,
+        300
+      ]
+    },
+    {
+      "parameters": {
+        "command": "=ssh -p 36000 root@10.20.47.14 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country cn --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-cn",
+      "name": "中国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        60
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "wGL20YUQ7ZpN1xRA",
+          "name": "中国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=ssh root@10.20.10.12 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country ph --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-ph",
+      "name": "菲律宾",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        180
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "MQWXoKIQxg8ae2Nt",
+          "name": "菲律宾跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=ssh -p 36000 root@192.168.21.236 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country ine --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-ine",
+      "name": "印尼",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        300
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SyHW5nXUCnuULr2c",
+          "name": "印尼跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=ssh -p 36000 root@172.20.220.165 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country mx --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-mx",
+      "name": "墨西哥",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        420
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "7oQDoS8H2buTjr7H",
+          "name": "墨西哥跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=ssh -p 36000 root@192.168.20.236 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country th --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-th",
+      "name": "泰国",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        540
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "SliSXhrkW6tiEFFo",
+          "name": "泰国跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "command": "=ssh root@10.20.84.176 'bash -s' <<'DS_ZOMBIE_SCAN'\nset -e\nREPO=/tmp/KN-YCGJ-TZ-governance-automation\nSCRIPT=\"$REPO/alert-sql-notification/governance-automation/remote_scripts/ds_zombie_scan.py\"\ntest -s \"$SCRIPT\" || { echo \"DS_ZOMBIE_SCAN_CODE_NOT_DEPLOYED\" >&2; exit 31; }\ncd \"$REPO/alert-sql-notification/governance-automation\"\n# DS_DB_* and GOVERNANCE_DB_* must already exist in the remote service environment.\nARGS=(--country pk --batch-id '{$json.batch_id}' --lookback-days '{$json.lookback_days}' --min-stale-months '{$json.min_stale_months}' --score-version '{$json.score_version}' --top-limit '{$json.top_limit}')\n[ -z '{$json.project_name}' ] || ARGS+=(--project-name '{$json.project_name}')\n[ -z '{$json.workflow_name}' ] || ARGS+=(--workflow-name '{$json.workflow_name}')\n[ -z '{$json.task_name}' ] || ARGS+=(--task-name '{$json.task_name}')\n[ '{$json.write_to_db}' != 'true' ] || ARGS+=(--write-to-db)\n[ '{$json.dry_run}' != 'true' ] || ARGS+=(--dry-run)\npython3 \"$SCRIPT\" \"${ARGS[@]}\"\nDS_ZOMBIE_SCAN"
+      },
+      "id": "ssh-pk",
+      "name": "巴基斯坦",
+      "type": "n8n-nodes-base.ssh",
+      "typeVersion": 1,
+      "position": [
+        -140,
+        660
+      ],
+      "credentials": {
+        "sshPrivateKey": {
+          "id": "W8NbqcmBWoI5MZ3s",
+          "name": "巴基斯坦跳板机"
+        }
+      }
+    },
+    {
+      "parameters": {
+        "jsCode": "const raw=$json||{}; const out=String(raw.stdout||'').trim(); if(!out) throw new Error(String(raw.stderr||'EMPTY_STDOUT')); const p=JSON.parse(out); if(Array.isArray(p.data)||Array.isArray(p.candidates)) throw new Error('BULK_RESULT_REJECTED'); if((p.top_candidates||[]).length>100) throw new Error('TOP_LIMIT_EXCEEDED'); return [{json:p}];"
+      },
+      "id": "summary",
+      "name": "Validate Python Summary",
+      "type": "n8n-nodes-base.code",
+      "typeVersion": 2,
+      "position": [
+        180,
+        300
+      ]
+    }
+  ],
+  "connections": {
+    "Manual Trigger - Run Scan": {
+      "main": [
+        [
+          {
+            "node": "Build Manual Scan Request",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "Build Manual Scan Request": {
+      "main": [
+        [
+          {
+            "node": "按国家分流",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "按国家分流": {
+      "main": [
+        [
+          {
+            "node": "中国",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "菲律宾",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "印尼",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "墨西哥",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "泰国",
+            "type": "main",
+            "index": 0
+          }
+        ],
+        [
+          {
+            "node": "巴基斯坦",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "中国": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "菲律宾": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "印尼": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "墨西哥": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "泰国": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    },
+    "巴基斯坦": {
+      "main": [
+        [
+          {
+            "node": "Validate Python Summary",
+            "type": "main",
+            "index": 0
+          }
+        ]
+      ]
+    }
+  },
+  "active": false,
+  "settings": {
+    "executionOrder": "v1"
+  }
+}

@@ -13,6 +13,23 @@
 - `remote_scripts/ds_match_candidate_query.py`: n8n SSH 子流程远端 DS 候选查询脚本。
 - `tools/run_weekly_governance.py`: 本地或调度入口。
 - `tests/test_governance_automation.py`: 单元测试。
+- `remote_scripts/ds_zombie_scan.py`: DS 僵尸任务 Python 扫描、上下游识别、评分和小摘要入口。
+- `workflows/ds-zombie-scan-python.workflow.json`: 基于现有手动扫描流程改造的新版 n8n workflow。
+- `docs/DS_ZOMBIE_SCAN_LOGIC.md`: 完整中文判断逻辑、上下游反查规则和 A/B/C/D 口径。
+
+## DS 僵尸任务 Python 扫描
+
+新版流程保留原 n8n 的国家分流与 SSH 凭据，但原始 DS 明细不再进入 n8n。远端需配置 `DS_DB_HOST`、`DS_DB_PORT`、`DS_DB_USER`、`DS_DB_PASSWORD`、`DS_DB_DATABASE`；启用治理落库时另配同名 `GOVERNANCE_DB_*` 环境变量。
+
+```bash
+python3 remote_scripts/ds_zombie_scan.py \
+  --country th \
+  --batch-id manual-20260720 \
+  --project-name example_project \
+  --dry-run
+```
+
+详细规则见 `docs/DS_ZOMBIE_SCAN_LOGIC.md`。扫描只读 DS 元数据库，不会自动停调度或下线。
 
 ## 本地测试
 
