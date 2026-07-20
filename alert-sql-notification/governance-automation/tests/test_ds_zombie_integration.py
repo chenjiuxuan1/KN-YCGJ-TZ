@@ -27,17 +27,17 @@ class RepositoryTests(unittest.TestCase):
         self.assertNotIn("process_definition_code", sql)
         self.assertNotIn("DELETE ", sql.upper())
 
-    def test_philippines_uses_legacy_process_schema(self):
+    def test_philippines_uses_workflow_schema(self):
         sql = build_scan_sql(country="ph", lookback_days=30)
         for table in (
-            "t_ds_process_definition",
-            "t_ds_process_task_relation",
-            "t_ds_process_instance",
+            "t_ds_workflow_definition",
+            "t_ds_workflow_task_relation",
+            "t_ds_workflow_instance",
             "t_ds_schedules",
         ):
             self.assertIn(table, sql)
-        self.assertIn("process_definition_code AS workflow_code", sql)
-        self.assertNotIn("t_ds_workflow_definition", sql)
+        self.assertIn("workflow_definition_code AS workflow_code", sql)
+        self.assertNotIn("t_ds_process_definition", sql)
 
 
 class StoreTests(unittest.TestCase):
