@@ -130,7 +130,7 @@
       "cluster": "starrocks_th",
       "host": "rm-gs533qw7xj1e7wdp7.mysql.singapore.rds.aliyuncs.com",
       "port": 3306,
-      "database": "dolphin_scheduler",
+      "database": "tha_dolphin",
       "user": "a_dolphinscheduler",
       "password_env": "TH_DS_DB_PASSWORD"
     }

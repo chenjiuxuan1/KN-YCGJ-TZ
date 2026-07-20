@@ -19,11 +19,12 @@ class RepositoryTests(unittest.TestCase):
         for table in (
             "t_ds_workflow_task_relation",
             "t_ds_task_definition",
-            "t_ds_process_instance",
+            "t_ds_workflow_instance",
             "t_ds_schedules",
         ):
             self.assertIn(table, sql)
-        self.assertTrue(sql.lstrip().upper().startswith("WITH"))
+        self.assertIn("workflow_definition_code AS workflow_code", sql)
+        self.assertNotIn("process_definition_code", sql)
         self.assertNotIn("DELETE ", sql.upper())
 
 
