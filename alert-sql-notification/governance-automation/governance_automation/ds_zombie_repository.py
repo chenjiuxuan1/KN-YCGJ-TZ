@@ -12,21 +12,6 @@ def build_scan_sql(
     """Return one read-only query whose rows contain workflow, task and run evidence."""
     days = max(1, min(int(lookback_days), 365))
     return f"""
-WITH instance_stats AS (
-  SELECT process_definition_code AS workflow_code,
-         MAX(start_time) AS last_run_time,
-         MAX(CASE WHEN state = 7 THEN end_time END) AS last_success_time,
-         MAX(CASE WHEN state IN (6,9) THEN end_time END) AS last_failure_time,
-         SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY)) AS total_runs_30d,
-         SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY) AND state IN (6,9)) AS failed_runs_30d
-  FROM t_ds_process_instance
-  GROUP BY process_definition_code
-), schedule_stats AS (
-  SELECT process_definition_code AS workflow_code,
-         MAX(CASE WHEN release_state = 1 THEN 1 ELSE 0 END) AS schedule_online
-  FROM t_ds_schedules
-  GROUP BY process_definition_code
-)
 SELECT {quote_sql_literal(country)} AS country,
        p.code AS project_code, p.name AS project_name,
        wd.code AS workflow_code, wd.name AS workflow_name,
@@ -49,8 +34,22 @@ LEFT JOIN t_ds_task_definition td
   ON td.project_code = rel.project_code
  AND td.code = rel.post_task_code
  AND td.version = rel.post_task_version
-LEFT JOIN instance_stats ist ON ist.workflow_code = wd.code
-LEFT JOIN schedule_stats ss ON ss.workflow_code = wd.code
+LEFT JOIN (
+  SELECT process_definition_code AS workflow_code,
+         MAX(start_time) AS last_run_time,
+         MAX(CASE WHEN state = 7 THEN end_time END) AS last_success_time,
+         MAX(CASE WHEN state IN (6,9) THEN end_time END) AS last_failure_time,
+         SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY)) AS total_runs_30d,
+         SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY) AND state IN (6,9)) AS failed_runs_30d
+  FROM t_ds_process_instance
+  GROUP BY process_definition_code
+) ist ON ist.workflow_code = wd.code
+LEFT JOIN (
+  SELECT process_definition_code AS workflow_code,
+         MAX(CASE WHEN release_state = 1 THEN 1 ELSE 0 END) AS schedule_online
+  FROM t_ds_schedules
+  GROUP BY process_definition_code
+) ss ON ss.workflow_code = wd.code
 WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or None)})
   AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name = {quote_sql_literal(workflow_name or None)})
   AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name = {quote_sql_literal(task_name or None)})
@@ -65,4 +64,3 @@ class DsZombieRepository:
     def fetch_scan_rows(self, **filters: Any) -> List[Dict[str, Any]]:
         sql = build_scan_sql(**filters)
         return query_mysql_records(sql=sql, **self.config)
-
