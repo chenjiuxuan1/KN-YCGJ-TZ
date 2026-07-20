@@ -16,6 +16,11 @@ COUNTRIES = [
     ("巴基斯坦", "pk", "W8NbqcmBWoI5MZ3s", "巴基斯坦跳板机", "ssh root@10.20.84.176"),
 ]
 
+COUNTRY_OPTIONS = [
+    {"option": name, "value": code}
+    for name, code, *_ in COUNTRIES
+]
+
 
 def _ssh_command(code, hop):
     return """={hop} 'bash -s' <<'DS_ZOMBIE_SCAN'
@@ -37,15 +42,15 @@ DS_ZOMBIE_SCAN""".format(hop=hop, code=code)
 
 def build_workflow():
     nodes = [
-        {"parameters": {}, "id": "manual", "name": "Manual Trigger - Run Scan", "type": "n8n-nodes-base.manualTrigger", "typeVersion": 1, "position": [-900, 300]},
-        {"parameters": {"jsCode": """const c={country:'th',minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:true,dryRun:false,scoreVersion:'v1',topLimit:0}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.max(0,Number(c.topLimit)||0)}}];"""}, "id": "request", "name": "Build Manual Scan Request", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [-680, 300]},
-        {"parameters": {"rules": {"values": [{"conditions": {"conditions": [{"leftValue": "={{$json.country}}", "rightValue": code, "operator": {"type": "string", "operation": "equals"}}]}} for _, code, *_ in COUNTRIES]}}, "id": "switch", "name": "按国家分流", "type": "n8n-nodes-base.switch", "typeVersion": 3, "position": [-440, 300]},
+        {"parameters": {"formTitle": "DS僵尸任务扫描", "formDescription": "选择一个国家后执行只读扫描，并下载全量 CSV。", "formFields": {"values": [{"fieldLabel": "国家", "fieldName": "country", "fieldType": "dropdown", "fieldOptions": {"values": COUNTRY_OPTIONS}, "requiredField": True}]}}, "id": "country-form", "name": "选择国家并启动扫描", "type": "n8n-nodes-base.formTrigger", "typeVersion": 2, "position": [-900, 300]},
+        {"parameters": {"jsCode": """const input=$json||{}; const country=String(input.country||'').trim().toLowerCase(); if(!['cn','ph','ine','mx','th','pk'].includes(country)) throw new Error('请选择有效国家'); const c={country,minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:false,dryRun:true,scoreVersion:'v1',topLimit:0}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.max(0,Number(c.topLimit)||0)}}];"""}, "id": "request", "name": "Build Manual Scan Request", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [-680, 300]},
+        {"parameters": {"mode": "rules", "rules": {"values": [{"conditions": {"options": {"caseSensitive": False, "leftValue": "", "typeValidation": "strict"}, "conditions": [{"leftValue": "={{$json.country}}", "rightValue": code, "operator": {"type": "string", "operation": "equals"}}], "combinator": "and"}} for _, code, *_ in COUNTRIES]}, "options": {"fallbackOutput": "none"}}, "id": "switch", "name": "按国家分流", "type": "n8n-nodes-base.switch", "typeVersion": 3, "position": [-440, 300]},
     ]
     for index, (name, code, credential_id, credential_name, hop) in enumerate(COUNTRIES):
         nodes.append({"parameters": {"command": _ssh_command(code, hop)}, "id": "ssh-" + code, "name": name, "type": "n8n-nodes-base.ssh", "typeVersion": 1, "position": [-140, 60 + index * 120], "credentials": {"sshPrivateKey": {"id": credential_id, "name": credential_name}}})
     nodes.append({"parameters": {"jsCode": """const raw=$json||{}; const out=String(raw.stdout||'').trim(); if(!out) throw new Error(String(raw.stderr||'EMPTY_STDOUT')); const p=JSON.parse(out); if(Array.isArray(p.data)||Array.isArray(p.candidates)) throw new Error('BULK_RESULT_REJECTED'); return [{json:p}];"""}, "id": "summary", "name": "Validate Python Summary", "type": "n8n-nodes-base.code", "typeVersion": 2, "position": [180, 300]})
     connections = {
-        "Manual Trigger - Run Scan": {"main": [[{"node": "Build Manual Scan Request", "type": "main", "index": 0}]]},
+        "选择国家并启动扫描": {"main": [[{"node": "Build Manual Scan Request", "type": "main", "index": 0}]]},
         "Build Manual Scan Request": {"main": [[{"node": "按国家分流", "type": "main", "index": 0}]]},
         "按国家分流": {"main": [[{"node": name, "type": "main", "index": 0}] for name, *_ in COUNTRIES]},
     }

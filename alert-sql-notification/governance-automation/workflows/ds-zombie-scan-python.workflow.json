@@ -2,11 +2,52 @@
   "name": "DS僵尸任务扫描_Python处理_直连DS库",
   "nodes": [
     {
-      "parameters": {},
-      "id": "manual",
-      "name": "Manual Trigger - Run Scan",
-      "type": "n8n-nodes-base.manualTrigger",
-      "typeVersion": 1,
+      "parameters": {
+        "formTitle": "DS僵尸任务扫描",
+        "formDescription": "选择一个国家后执行只读扫描，并下载全量 CSV。",
+        "formFields": {
+          "values": [
+            {
+              "fieldLabel": "国家",
+              "fieldName": "country",
+              "fieldType": "dropdown",
+              "fieldOptions": {
+                "values": [
+                  {
+                    "option": "中国",
+                    "value": "cn"
+                  },
+                  {
+                    "option": "菲律宾",
+                    "value": "ph"
+                  },
+                  {
+                    "option": "印尼",
+                    "value": "ine"
+                  },
+                  {
+                    "option": "墨西哥",
+                    "value": "mx"
+                  },
+                  {
+                    "option": "泰国",
+                    "value": "th"
+                  },
+                  {
+                    "option": "巴基斯坦",
+                    "value": "pk"
+                  }
+                ]
+              },
+              "requiredField": true
+            }
+          ]
+        }
+      },
+      "id": "country-form",
+      "name": "选择国家并启动扫描",
+      "type": "n8n-nodes-base.formTrigger",
+      "typeVersion": 2,
       "position": [
         -900,
         300
@@ -14,7 +55,7 @@
     },
     {
       "parameters": {
-        "jsCode": "const c={country:'th',minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:true,dryRun:false,scoreVersion:'v1',topLimit:0}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.max(0,Number(c.topLimit)||0)}}];"
+        "jsCode": "const input=$json||{}; const country=String(input.country||'').trim().toLowerCase(); if(!['cn','ph','ine','mx','th','pk'].includes(country)) throw new Error('请选择有效国家'); const c={country,minStaleMonths:3,lookbackDays:30,projectName:'',workflowName:'',taskName:'',writeToDb:false,dryRun:true,scoreVersion:'v1',topLimit:0}; const id=String(Date.now()); return [{json:{request_id:id,batch_id:id,country:c.country,min_stale_months:c.minStaleMonths,lookback_days:c.lookbackDays,project_name:c.projectName,workflow_name:c.workflowName,task_name:c.taskName,write_to_db:c.writeToDb,dry_run:c.dryRun,score_version:c.scoreVersion,top_limit:Math.max(0,Number(c.topLimit)||0)}}];"
       },
       "id": "request",
       "name": "Build Manual Scan Request",
@@ -27,10 +68,16 @@
     },
     {
       "parameters": {
+        "mode": "rules",
         "rules": {
           "values": [
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -40,11 +87,17 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -54,11 +107,17 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -68,11 +127,17 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -82,11 +147,17 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -96,11 +167,17 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             },
             {
               "conditions": {
+                "options": {
+                  "caseSensitive": false,
+                  "leftValue": "",
+                  "typeValidation": "strict"
+                },
                 "conditions": [
                   {
                     "leftValue": "={{$json.country}}",
@@ -110,10 +187,14 @@
                       "operation": "equals"
                     }
                   }
-                ]
+                ],
+                "combinator": "and"
               }
             }
           ]
+        },
+        "options": {
+          "fallbackOutput": "none"
         }
       },
       "id": "switch",
@@ -254,7 +335,7 @@
     }
   ],
   "connections": {
-    "Manual Trigger - Run Scan": {
+    "选择国家并启动扫描": {
       "main": [
         [
           {

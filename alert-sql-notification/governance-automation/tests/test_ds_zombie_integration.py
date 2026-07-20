@@ -27,6 +27,18 @@ class RepositoryTests(unittest.TestCase):
         self.assertNotIn("process_definition_code", sql)
         self.assertNotIn("DELETE ", sql.upper())
 
+    def test_philippines_uses_legacy_process_schema(self):
+        sql = build_scan_sql(country="ph", lookback_days=30)
+        for table in (
+            "t_ds_process_definition",
+            "t_ds_process_task_relation",
+            "t_ds_process_instance",
+            "t_ds_schedules",
+        ):
+            self.assertIn(table, sql)
+        self.assertIn("process_definition_code AS workflow_code", sql)
+        self.assertNotIn("t_ds_workflow_definition", sql)
+
 
 class StoreTests(unittest.TestCase):
     def test_candidate_upsert_has_idempotent_key(self):
@@ -60,6 +72,9 @@ class WorkflowTests(unittest.TestCase):
     def test_generated_workflow_preserves_country_routes_without_bulk_json(self):
         workflow = self._load_builder().build_workflow()
         names = {node["name"] for node in workflow["nodes"]}
+        form_trigger = next(node for node in workflow["nodes"] if node["name"] == "选择国家并启动扫描")
+        self.assertEqual(form_trigger["type"], "n8n-nodes-base.formTrigger")
+        self.assertEqual(len(form_trigger["parameters"]["formFields"]["values"][0]["fieldOptions"]["values"]), 6)
         self.assertIn("按国家分流", names)
         self.assertNotIn("Build Zombie Workflow Candidates", names)
         self.assertNotIn("Parse DS Metadata Result", names)

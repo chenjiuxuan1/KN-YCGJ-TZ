@@ -114,7 +114,7 @@
       "cluster": "starrocks_ph",
       "host": "10.20.81.11",
       "port": 3306,
-      "database": "dolphin_scheduler",
+      "database": "phl_dolphin",
       "user": "a_dolphinscheduler",
       "password_env": "PH_DS_DB_PASSWORD"
     },
