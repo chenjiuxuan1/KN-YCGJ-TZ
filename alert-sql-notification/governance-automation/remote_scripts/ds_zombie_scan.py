@@ -22,6 +22,15 @@ from governance_automation.ds_zombie_models import WorkflowSnapshot
 from governance_automation.ds_zombie_pipeline import build_summary
 from governance_automation.ds_zombie_repository import DsZombieRepository
 from governance_automation.ds_zombie_store import GovernanceStore
+from governance_automation.ds_task_lineage import (
+    build_table_consumers, extract_task_table_evidence, parse_task_params, task_script,
+)
+
+
+DEPENDENCY_DETAIL_AVAILABLE = "available"
+DEPENDENCY_DETAIL_NONE = "none"
+DEPENDENCY_DETAIL_INCOMPLETE = "incomplete"
+DEPENDENCY_DETAIL_UNAVAILABLE = "unavailable"
 
 
 def as_bool(value):
@@ -105,6 +114,81 @@ def format_upstream_details(details):
     )
 
 
+def dependency_detail_status(downstream_count, details, scan_complete):
+    if not scan_complete:
+        return DEPENDENCY_DETAIL_INCOMPLETE
+    if int(downstream_count or 0) == 0:
+        return DEPENDENCY_DETAIL_NONE
+    return DEPENDENCY_DETAIL_AVAILABLE if details else DEPENDENCY_DETAIL_UNAVAILABLE
+
+
+def format_downstream_for_status(status, downstream_count, details):
+    if status == DEPENDENCY_DETAIL_NONE:
+        return "无下游依赖"
+    if status == DEPENDENCY_DETAIL_AVAILABLE:
+        return format_downstream_details(details)
+    if status == DEPENDENCY_DETAIL_INCOMPLETE:
+        return "下游依赖解析不完整，需补充证据"
+    return "已识别 %s 个下游依赖，但明细未返回；请部署最新扫描脚本" % downstream_count
+
+
+def build_task_rows(workflow_row, tasks, table_consumers=None):
+    table_consumers = table_consumers or {}
+    rows = []
+    for task in sorted(tasks, key=lambda item: (str(item.get("task_name") or ""), str(item.get("task_code") or ""))):
+        params = parse_task_params(task.get("task_params"))
+        evidence = extract_task_table_evidence(task_script(params), params)
+        consumers = []
+        for table in evidence.write_tables:
+            consumers.extend(item for item in table_consumers.get(table, []) if item["workflow_code"] != workflow_row["workflow_code"])
+        active_consumers = [item for item in consumers if item["active"]]
+        consumer_details = " | ".join(
+            "项目名称：{project_name}；工作流：{workflow_name}；任务：{task_name}；读取表：{table}".format(table=table, **item)
+            for table in evidence.write_tables for item in table_consumers.get(table, [])
+            if item["workflow_code"] != workflow_row["workflow_code"]
+        )
+        row = dict(workflow_row)
+        row.update({
+            "record_granularity": "任务级",
+            "candidate_task_code": str(task.get("task_code") or ""),
+            "candidate_task_name": str(task.get("task_name") or "未命名任务"),
+            "candidate_task_type": str(task.get("task_type") or "未知"),
+            "candidate_write_tables": "|".join(evidence.write_tables) or "未识别写表",
+            "candidate_read_tables": "|".join(evidence.read_tables) or "未识别读表",
+            "task_resource_refs": "|".join(evidence.resource_refs) or "无资源引用",
+            "task_lineage_status": evidence.status,
+            "table_lineage_downstream_detail": consumer_details or ("未识别写表" if not evidence.write_tables else "未发现内嵌SQL消费者，待 Router 增强"),
+            "table_lineage_confidence": "高" if active_consumers else "未确认",
+            "table_lineage_source": "内嵌任务SQL" if consumers else "待 Router 增强",
+            "table_lineage_status": "已确认" if active_consumers else ("待增强" if evidence.write_tables else "不适用"),
+            "downstream_protection_basis": (
+                "活跃任务表血缘保护" if active_consumers else workflow_row.get("downstream_protection_basis", "无保护证据")
+            ),
+        })
+        if evidence.status == "incomplete":
+            row["reasons"] = list(row.get("reasons", [])) + ["任务 SQL 为动态内容，表血缘待补充"]
+        rows.append(row)
+    if rows:
+        return rows
+    fallback = dict(workflow_row)
+    fallback.update({
+        "record_granularity": "工作流级兜底",
+        "candidate_task_code": "",
+        "candidate_task_name": "工作流级评估",
+        "candidate_task_type": "无任务定义",
+        "candidate_write_tables": "未识别写表",
+        "candidate_read_tables": "未识别读表",
+        "task_resource_refs": "无资源引用",
+        "task_lineage_status": "incomplete",
+        "table_lineage_downstream_detail": "任务定义缺失，未执行表血缘扫描",
+        "table_lineage_confidence": "未扫描",
+        "table_lineage_source": "未扫描",
+        "table_lineage_status": "不完整",
+        "downstream_protection_basis": workflow_row.get("downstream_protection_basis", "无保护证据"),
+    })
+    return [fallback]
+
+
 def scan(args):
     config = read_mysql_config_from_env()
     missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
@@ -114,7 +198,7 @@ def scan(args):
         country=args.country, lookback_days=args.lookback_days,
         project_name=args.project_name, workflow_name=args.workflow_name, task_name=args.task_name,
     )
-    workflows, relations, tasks, task_names = OrderedDict(), [], [], {}
+    workflows, relations, tasks, tasks_by_workflow, task_names = OrderedDict(), [], [], OrderedDict(), {}
     for row in rows:
         code = str(row.get("workflow_code") or "")
         workflows.setdefault(code, row)
@@ -123,14 +207,30 @@ def scan(args):
             "pre_task_code": str(row.get("pre_task_code") or ""),
             "post_task_code": str(row.get("post_task_code") or ""),
         })
-        tasks.append({
+        task = {
             "workflow_code": code, "task_code": str(row.get("task_code") or ""),
             "task_name": str(row.get("task_name") or ""), "task_type": row.get("task_type"),
             "task_params": row.get("task_params"),
-        })
-        task_names[(code, str(row.get("task_code") or ""))] = str(row.get("task_name") or "")
+        }
+        tasks.append(task)
+        tasks_by_workflow.setdefault(code, OrderedDict()).setdefault(task["task_code"], task)
+        task_names[(code, task["task_code"])] = task["task_name"]
     graph = build_dependency_graph(relations, tasks)
-    all_rows = []
+    table_consumers = build_table_consumers([
+        {
+            "project_name": workflows.get(code, {}).get("project_name"),
+            "workflow_code": code,
+            "workflow_name": workflows.get(code, {}).get("workflow_name"),
+            "task_code": task.get("task_code"), "task_name": task.get("task_name"),
+            "sql": task_script(parse_task_params(task.get("task_params"))),
+            "params": parse_task_params(task.get("task_params")),
+            "active": bool(as_bool(workflows.get(code, {}).get("schedule_active")))
+                or int(workflows.get(code, {}).get("total_runs_30d") or 0) > 0
+                or bool(as_bool(workflows.get(code, {}).get("active_instance_present"))),
+        }
+        for code, group in tasks_by_workflow.items() for task in group.values()
+    ])
+    workflow_rows = []
     for code, row in workflows.items():
         downstream = tuple(sorted(graph.workflow_downstream[code]))
         downstream_assessment = assess_downstream_activity(
@@ -148,6 +248,16 @@ def scan(args):
         }))
         upstream_details = build_upstream_details(code, graph, workflows, task_names)
         downstream_details = build_downstream_details(code, graph, workflows, task_names)
+        detail_status = dependency_detail_status(len(downstream), downstream_details, graph.scan_complete[code])
+        task_evidences = [
+            extract_task_table_evidence(task_script(parse_task_params(task.get("task_params"))), parse_task_params(task.get("task_params")))
+            for task in tasks_by_workflow.get(code, {}).values()
+        ]
+        has_active_table_consumer = any(
+            consumer["active"]
+            for evidence in task_evidences for table in evidence.write_tables
+            for consumer in table_consumers.get(table, []) if consumer["workflow_code"] != code
+        )
         snapshot = WorkflowSnapshot(
             country=args.country, project_code=str(row.get("project_code") or ""), workflow_code=code,
             project_name=str(row.get("project_name") or ""), workflow_name=str(row.get("workflow_name") or ""),
@@ -161,12 +271,18 @@ def scan(args):
             downstream_workflows=downstream_assessment.active_codes,
         )
         result = classify_workflow(snapshot, score_version=args.score_version)
+        if has_active_table_consumer:
+            result = ScoreResult(
+                "D", "RETAIN_AND_ASSESS", result.score_total,
+                result.reasons + ("存在活跃任务表血缘下游",), result.score_detail,
+                protected_by_dependency=True,
+            )
         if downstream_assessment.review_codes and result.level == "A":
             result = ScoreResult(
                 "B", "OWNER_CONFIRMATION", result.score_total,
                 result.reasons + ("存在未活跃下游依赖，需负责人确认",), result.score_detail,
             )
-        all_rows.append({
+        workflow_rows.append({
             "country": args.country, "batch_id": args.batch_id, "score_version": args.score_version,
             "project_code": snapshot.project_code, "project_name": snapshot.project_name,
             "workflow_code": code, "workflow_name": snapshot.workflow_name, "owner_name": snapshot.owner_name,
@@ -183,7 +299,13 @@ def scan(args):
             "dependent_downstream_count": len(dependent_downstream),
             "sub_process_downstream_count": len(sub_process_downstream),
             "upstream_dependency_detail": format_upstream_details(upstream_details),
-            "downstream_dependency_detail": format_downstream_details(downstream_details),
+            "dependency_detail_status": detail_status,
+            "downstream_dependency_detail": format_downstream_for_status(detail_status, len(downstream), downstream_details),
+            "downstream_protection_basis": (
+                "存在活跃显式下游依赖" if downstream_assessment.active_codes else
+                "存在待确认显式下游依赖" if downstream_assessment.review_codes else
+                "无显式下游依赖"
+            ),
             "reasons": list(result.reasons),
             "evidence": {
                 "upstream": snapshot.upstream_workflows,
@@ -195,12 +317,15 @@ def scan(args):
                 "downstream_details": downstream_details,
             },
         })
-    candidates = all_rows if args.include_retained else [row for row in all_rows if row["level"] != "D"]
+    workflow_candidates = workflow_rows if args.include_retained else [row for row in workflow_rows if row["level"] != "D"]
+    candidates = []
+    for row in workflow_candidates:
+        candidates.extend(build_task_rows(row, list(tasks_by_workflow.get(row["workflow_code"], {}).values()), table_consumers))
     persisted = 0
     if args.write_to_db and not args.dry_run:
         gov = read_mysql_config_from_env("GOVERNANCE_DB")
-        persisted = GovernanceStore(gov, os.getenv("GOVERNANCE_DB_TABLE", "ds_zombie_workflow_governance")).persist(candidates)
-    scanned_levels = Counter(str(row.get("level") or "C") for row in all_rows)
+        persisted = GovernanceStore(gov, os.getenv("GOVERNANCE_DB_TABLE", "ds_zombie_workflow_governance")).persist(workflow_candidates)
+    scanned_levels = Counter(str(row.get("level") or "C") for row in workflow_rows)
     return build_summary(
         args.country, args.batch_id, args.score_version, len(workflows), candidates, persisted, args.top_limit,
         scanned_level_summary={level: scanned_levels.get(level, 0) for level in "ABCD"},

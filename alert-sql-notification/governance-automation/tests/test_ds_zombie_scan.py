@@ -7,8 +7,9 @@ from governance_automation.ds_zombie_classifier import classify_workflow
 from governance_automation.ds_zombie_dependency_policy import assess_downstream_activity
 from governance_automation.ds_zombie_models import EvidenceState, WorkflowSnapshot
 from remote_scripts.ds_zombie_scan import (
-    build_downstream_details, build_upstream_details, format_downstream_details,
-    format_upstream_details, parse_time,
+    build_downstream_details, build_task_rows, build_upstream_details,
+    dependency_detail_status, format_downstream_details, format_upstream_details,
+    parse_time,
 )
 from governance_automation.ds_zombie_pipeline import build_summary
 
@@ -119,6 +120,20 @@ class DependencyGraphTests(unittest.TestCase):
         )
         self.assertIn("项目名称：项目B；工作流：生产工作流；任务：产出数据；类型：依赖任务", format_upstream_details(details))
         self.assertEqual(format_upstream_details([]), "无上游依赖")
+
+    def test_nonzero_downstream_without_details_is_not_rendered_as_none(self):
+        status = dependency_detail_status(2, [], True)
+        self.assertEqual(status, "unavailable")
+
+    def test_task_rows_repeat_workflow_fields(self):
+        base = {"workflow_code": "wf1", "workflow_name": "工作流A", "level": "A"}
+        rows = build_task_rows(base, [
+            {"task_code": "t1", "task_name": "写入订单", "task_type": "SQL", "task_params": "{}"},
+            {"task_code": "t2", "task_name": "刷新快照", "task_type": "SHELL", "task_params": "{}"},
+        ])
+        self.assertEqual([row["candidate_task_name"] for row in rows], ["写入订单", "刷新快照"])
+        self.assertTrue(all(row["workflow_code"] == "wf1" for row in rows))
+        self.assertTrue(all(row["record_granularity"] == "任务级" for row in rows))
 
 
 class DownstreamActivityTests(unittest.TestCase):
