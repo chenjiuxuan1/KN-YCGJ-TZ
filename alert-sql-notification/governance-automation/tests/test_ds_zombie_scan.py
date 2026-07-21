@@ -6,6 +6,7 @@ from governance_automation.ds_dependency_graph import build_dependency_graph
 from governance_automation.ds_zombie_classifier import classify_workflow
 from governance_automation.ds_zombie_dependency_policy import assess_downstream_activity
 from governance_automation.ds_zombie_models import EvidenceState, WorkflowSnapshot
+from remote_scripts.ds_zombie_scan import build_downstream_details, format_downstream_details, parse_time
 from governance_automation.ds_zombie_pipeline import build_summary
 
 
@@ -75,6 +76,28 @@ class DependencyGraphTests(unittest.TestCase):
         self.assertEqual(graph.workflow_upstream["parent"], {"child"})
         self.assertEqual(graph.workflow_downstream["child"], {"parent"})
         self.assertEqual(graph.evidence[0]["dependency_type"], "SUB_PROCESS")
+
+    def test_downstream_detail_has_consumer_project_workflow_and_task(self):
+        graph = build_dependency_graph(
+            relation_rows=[],
+            task_rows=[{
+                "workflow_code": "consumer", "task_code": "task1", "task_type": "SUB_PROCESS",
+                "task_params": json.dumps({"processDefinitionCode": "candidate"}),
+            }],
+        )
+        details = build_downstream_details(
+            "candidate", graph,
+            {"consumer": {"project_name": "项目A", "workflow_name": "消费工作流"}},
+            {("consumer", "task1"): "调用子流程"},
+        )
+        self.assertEqual(details[0]["项目名称"], "项目A")
+        self.assertEqual(details[0]["工作流名称"], "消费工作流")
+        self.assertEqual(details[0]["任务名称"], "调用子流程")
+        self.assertIn("项目名称：项目A；工作流：消费工作流；任务：调用子流程", format_downstream_details(details))
+        self.assertEqual(format_downstream_details([]), "无下游依赖")
+
+    def test_parse_time_accepts_mysql_datetime(self):
+        self.assertEqual(parse_time("2026-07-21 10:30:00").year, 2026)
 
 
 class DownstreamActivityTests(unittest.TestCase):

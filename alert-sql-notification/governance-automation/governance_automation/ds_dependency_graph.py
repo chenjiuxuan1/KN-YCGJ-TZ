@@ -90,6 +90,7 @@ def build_dependency_graph(
                 graph.evidence.append(
                     {
                         "source_workflow_code": source,
+                        "source_task_code": str(row.get("task_code") or ""),
                         "target_workflow_code": target,
                         "target_project_code": _value(item, "projectCode", "project_code"),
                         "target_task_code": _value(item, "depTaskCode", "taskCode", "task_code"),
@@ -103,6 +104,7 @@ def build_dependency_graph(
             graph.evidence.append(
                 {
                     "source_workflow_code": source,
+                    "source_task_code": str(row.get("task_code") or ""),
                     "dependency_type": dependency_type,
                     "parse_status": "FAILED",
                     "evidence_hash": hashlib.sha256(str(raw).encode("utf-8")).hexdigest(),

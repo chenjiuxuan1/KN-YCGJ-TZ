@@ -2,7 +2,7 @@
 """Scan DS workflows locally and print only one bounded n8n summary."""
 
 import argparse
-from collections import OrderedDict
+from collections import Counter, OrderedDict
 from datetime import datetime
 import json
 import os
@@ -41,6 +41,36 @@ def parse_time(value):
         return None
 
 
+def build_downstream_details(code, graph, workflows, task_names):
+    """Return human-readable consumers of ``code`` for the CSV export."""
+    details = []
+    for item in graph.evidence:
+        if item.get("target_workflow_code") != code or item.get("parse_status") != "SUCCESS":
+            continue
+        source_code = str(item.get("source_workflow_code") or "")
+        source = workflows.get(source_code, {})
+        task_code = str(item.get("source_task_code") or "")
+        task_name = task_names.get((source_code, task_code), "")
+        details.append({
+            "项目名称": str(source.get("project_name") or "未知项目"),
+            "工作流名称": str(source.get("workflow_name") or source_code or "未知工作流"),
+            "任务名称": task_name or task_code or "未识别任务",
+            "依赖类型": str(item.get("dependency_type") or "未知"),
+            "工作流编码": source_code,
+            "任务编码": task_code,
+        })
+    return sorted(details, key=lambda item: (item["项目名称"], item["工作流名称"], item["任务名称"], item["依赖类型"]))
+
+
+def format_downstream_details(details):
+    if not details:
+        return "无下游依赖"
+    return " | ".join(
+        "项目名称：{项目名称}；工作流：{工作流名称}；任务：{任务名称}；类型：{依赖类型}".format(**item)
+        for item in details
+    )
+
+
 def scan(args):
     config = read_mysql_config_from_env()
     missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
@@ -50,7 +80,7 @@ def scan(args):
         country=args.country, lookback_days=args.lookback_days,
         project_name=args.project_name, workflow_name=args.workflow_name, task_name=args.task_name,
     )
-    workflows, relations, tasks = OrderedDict(), [], []
+    workflows, relations, tasks, task_names = OrderedDict(), [], [], {}
     for row in rows:
         code = str(row.get("workflow_code") or "")
         workflows.setdefault(code, row)
@@ -61,10 +91,12 @@ def scan(args):
         })
         tasks.append({
             "workflow_code": code, "task_code": str(row.get("task_code") or ""),
-            "task_type": row.get("task_type"), "task_params": row.get("task_params"),
+            "task_name": str(row.get("task_name") or ""), "task_type": row.get("task_type"),
+            "task_params": row.get("task_params"),
         })
+        task_names[(code, str(row.get("task_code") or ""))] = str(row.get("task_name") or "")
     graph = build_dependency_graph(relations, tasks)
-    candidates = []
+    all_rows = []
     for code, row in workflows.items():
         downstream = tuple(sorted(graph.workflow_downstream[code]))
         downstream_assessment = assess_downstream_activity(
@@ -80,6 +112,7 @@ def scan(args):
             if item.get("target_workflow_code") == code
             and item.get("dependency_type") == "SUB_PROCESS"
         }))
+        downstream_details = build_downstream_details(code, graph, workflows, task_names)
         snapshot = WorkflowSnapshot(
             country=args.country, project_code=str(row.get("project_code") or ""), workflow_code=code,
             project_name=str(row.get("project_name") or ""), workflow_name=str(row.get("workflow_name") or ""),
@@ -98,7 +131,7 @@ def scan(args):
                 "B", "OWNER_CONFIRMATION", result.score_total,
                 result.reasons + ("存在未活跃下游依赖，需负责人确认",), result.score_detail,
             )
-        candidates.append({
+        all_rows.append({
             "country": args.country, "batch_id": args.batch_id, "score_version": args.score_version,
             "project_code": snapshot.project_code, "project_name": snapshot.project_name,
             "workflow_code": code, "workflow_name": snapshot.workflow_name, "owner_name": snapshot.owner_name,
@@ -114,6 +147,7 @@ def scan(args):
             "review_downstream_count": len(downstream_assessment.review_codes),
             "dependent_downstream_count": len(dependent_downstream),
             "sub_process_downstream_count": len(sub_process_downstream),
+            "downstream_dependency_detail": format_downstream_details(downstream_details),
             "reasons": list(result.reasons),
             "evidence": {
                 "upstream": snapshot.upstream_workflows,
@@ -121,13 +155,19 @@ def scan(args):
                 "review_downstream": downstream_assessment.review_codes,
                 "dependent_downstream": dependent_downstream,
                 "sub_process_downstream": sub_process_downstream,
+                "downstream_details": downstream_details,
             },
         })
+    candidates = all_rows if args.include_retained else [row for row in all_rows if row["level"] != "D"]
     persisted = 0
     if args.write_to_db and not args.dry_run:
         gov = read_mysql_config_from_env("GOVERNANCE_DB")
         persisted = GovernanceStore(gov, os.getenv("GOVERNANCE_DB_TABLE", "ds_zombie_workflow_governance")).persist(candidates)
-    return build_summary(args.country, args.batch_id, args.score_version, len(workflows), candidates, persisted, args.top_limit)
+    scanned_levels = Counter(str(row.get("level") or "C") for row in all_rows)
+    return build_summary(
+        args.country, args.batch_id, args.score_version, len(workflows), candidates, persisted, args.top_limit,
+        scanned_level_summary={level: scanned_levels.get(level, 0) for level in "ABCD"},
+    )
 
 
 def main():
@@ -142,6 +182,8 @@ def main():
     parser.add_argument("--score-version", default="v1")
     parser.add_argument("--top-limit", type=int, default=0,
                         help="Maximum CSV candidates to return; 0 returns all candidates.")
+    parser.add_argument("--include-retained", action="store_true",
+                        help="Also export D-level workflows retained by active-use protection.")
     parser.add_argument("--write-to-db", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
     args = parser.parse_args()

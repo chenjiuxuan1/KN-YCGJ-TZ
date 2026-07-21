@@ -10,6 +10,7 @@ def build_summary(
     candidates: Iterable[Dict[str, Any]],
     persisted_count: int,
     top_limit: int = 0,
+    scanned_level_summary: Dict[str, int] = None,
 ) -> Dict[str, Any]:
     if top_limit < 0:
         raise ValueError("top_limit must be zero or greater")
@@ -27,6 +28,7 @@ def build_summary(
         "candidate_count": len(rows),
         "persisted_count": persisted_count,
         "level_summary": {level: levels.get(level, 0) for level in "ABCD"},
+        "scanned_level_summary": scanned_level_summary or {level: levels.get(level, 0) for level in "ABCD"},
         "dependency_protected_count": sum(bool(row.get("protected_by_dependency")) for row in rows),
         "uncertain_dependency_count": sum(bool(row.get("protected_by_uncertainty")) for row in rows),
         "top_candidates": top,
