@@ -1,6 +1,6 @@
 import unittest
 
-from governance_automation.ds_task_lineage import extract_task_table_evidence
+from governance_automation.ds_task_lineage import build_table_consumers, extract_task_table_evidence
 
 
 class TaskLineageTests(unittest.TestCase):
@@ -23,6 +23,14 @@ class TaskLineageTests(unittest.TestCase):
             "", {"resourceList": [{"fullName": "/etl/load_orders.sql"}]}
         )
         self.assertEqual(evidence.resource_refs, ("/etl/load_orders.sql",))
+
+    def test_active_reader_becomes_high_confidence_consumer(self):
+        consumers = build_table_consumers([
+            {"workflow_code": "writer", "project_name": "项目A", "workflow_name": "写入流程", "task_name": "写订单", "active": False, "sql": "insert into dw.orders select * from raw.orders"},
+            {"workflow_code": "reader", "project_name": "项目B", "workflow_name": "消费流程", "task_name": "读订单", "active": True, "sql": "select * from dw.orders"},
+        ])
+        self.assertEqual(consumers["dw.orders"][0]["task_name"], "读订单")
+        self.assertTrue(consumers["dw.orders"][0]["active"])
 
 
 if __name__ == "__main__":

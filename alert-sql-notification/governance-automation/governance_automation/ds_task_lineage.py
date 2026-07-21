@@ -82,3 +82,23 @@ def extract_task_table_evidence(sql: str, params: Dict[str, Any] = None) -> Task
     write_tables = _unique(writes)
     read_tables = tuple(table for table in _unique(reads) if table.split(".")[-1] not in ctes)
     return TaskTableEvidence("available" if write_tables or read_tables else "none", write_tables, read_tables, refs)
+
+
+def build_table_consumers(task_rows: Iterable[Dict[str, Any]]) -> Dict[str, list]:
+    """Index read tables to task locations; caller supplies active workflow state."""
+    consumers: Dict[str, list] = {}
+    for row in task_rows:
+        evidence = extract_task_table_evidence(str(row.get("sql") or ""), row.get("params") or {})
+        for table in evidence.read_tables:
+            consumers.setdefault(table, []).append({
+                "project_name": str(row.get("project_name") or "未知项目"),
+                "workflow_code": str(row.get("workflow_code") or ""),
+                "workflow_name": str(row.get("workflow_name") or "未知工作流"),
+                "task_code": str(row.get("task_code") or ""),
+                "task_name": str(row.get("task_name") or "未命名任务"),
+                "active": bool(row.get("active")),
+                "source": "内嵌任务SQL",
+            })
+    for table in consumers:
+        consumers[table].sort(key=lambda item: (not item["active"], item["project_name"], item["workflow_name"], item["task_name"]))
+    return consumers
