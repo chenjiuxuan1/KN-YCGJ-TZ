@@ -20,6 +20,15 @@ class TaskLineageTests(unittest.TestCase):
         self.assertEqual(evidence.write_tables, ("dw.order_summary",))
         self.assertEqual(evidence.read_tables, ("raw.orders",))
 
+    def test_does_not_treat_python_import_as_a_read_table(self):
+        evidence = extract_task_table_evidence(
+            "from pyhive import hive\n"
+            "from collections import defaultdict\n"
+            "INSERT INTO hive.temp.orders SELECT * FROM hive.raw.orders"
+        )
+        self.assertEqual(evidence.write_tables, ("hive.temp.orders",))
+        self.assertEqual(evidence.read_tables, ("hive.raw.orders",))
+
     def test_dynamic_script_is_incomplete_not_empty(self):
         evidence = extract_task_table_evidence("spark.sql(sql_text)")
         self.assertEqual(evidence.status, "incomplete")

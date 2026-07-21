@@ -20,6 +20,7 @@ _CREATE_AS_RE = re.compile(
 _READ_RE = re.compile(r"\b(?:from|join)\s+" + _NAME, re.IGNORECASE)
 _CTE_RE = re.compile(r"(?:\bwith|,)\s*`?([a-zA-Z_][\w]*)`?\s+as\s*\(", re.IGNORECASE)
 _DYNAMIC_RE = re.compile(r"\b(?:spark|session)\.sql\s*\(\s*[a-zA-Z_$][\w$]*\s*\)|\$\{[^}]+\}", re.IGNORECASE)
+_PYTHON_IMPORT_RE = re.compile(r"(?m)^[ \t]*from[ \t]+[A-Za-z_][\w.]*[ \t]+import[^\r\n]*$")
 
 
 @dataclass(frozen=True)
@@ -70,6 +71,7 @@ def task_script(params: Dict[str, Any]) -> str:
 def extract_task_table_evidence(sql: str, params: Dict[str, Any] = None) -> TaskTableEvidence:
     params = params or {}
     text = strip_sql_comments(sql or "")
+    text = _PYTHON_IMPORT_RE.sub("", text)
     refs = _resource_refs(params)
     if not text.strip():
         return TaskTableEvidence("partial" if refs else "none", resource_refs=refs)
