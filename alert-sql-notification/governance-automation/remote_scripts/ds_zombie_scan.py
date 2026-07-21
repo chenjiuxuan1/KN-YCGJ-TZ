@@ -55,7 +55,7 @@ def build_downstream_details(code, graph, workflows, task_names):
             "项目名称": str(source.get("project_name") or "未知项目"),
             "工作流名称": str(source.get("workflow_name") or source_code or "未知工作流"),
             "任务名称": task_name or task_code or "未识别任务",
-            "依赖类型": str(item.get("dependency_type") or "未知"),
+            "依赖类型": dependency_type_name(item.get("dependency_type")),
             "工作流编码": source_code,
             "任务编码": task_code,
         })
@@ -65,6 +65,40 @@ def build_downstream_details(code, graph, workflows, task_names):
 def format_downstream_details(details):
     if not details:
         return "无下游依赖"
+    return " | ".join(
+        "项目名称：{项目名称}；工作流：{工作流名称}；任务：{任务名称}；类型：{依赖类型}".format(**item)
+        for item in details
+    )
+
+
+def dependency_type_name(value):
+    return {
+        "DEPENDENT": "依赖任务",
+        "SUB_PROCESS": "子工作流",
+    }.get(str(value or "").upper(), "未知依赖")
+
+
+def build_upstream_details(code, graph, workflows, task_names):
+    """Return the workflows and tasks the current workflow depends on."""
+    details = []
+    for item in graph.evidence:
+        if item.get("source_workflow_code") != code or item.get("parse_status") != "SUCCESS":
+            continue
+        target_code = str(item.get("target_workflow_code") or "")
+        target = workflows.get(target_code, {})
+        target_task_code = str(item.get("target_task_code") or "")
+        details.append({
+            "项目名称": str(target.get("project_name") or "未知项目"),
+            "工作流名称": str(target.get("workflow_name") or target_code or "未知工作流"),
+            "任务名称": task_names.get((target_code, target_task_code), "") or target_task_code or "工作流级依赖",
+            "依赖类型": dependency_type_name(item.get("dependency_type")),
+        })
+    return sorted(details, key=lambda item: (item["项目名称"], item["工作流名称"], item["任务名称"], item["依赖类型"]))
+
+
+def format_upstream_details(details):
+    if not details:
+        return "无上游依赖"
     return " | ".join(
         "项目名称：{项目名称}；工作流：{工作流名称}；任务：{任务名称}；类型：{依赖类型}".format(**item)
         for item in details
@@ -112,6 +146,7 @@ def scan(args):
             if item.get("target_workflow_code") == code
             and item.get("dependency_type") == "SUB_PROCESS"
         }))
+        upstream_details = build_upstream_details(code, graph, workflows, task_names)
         downstream_details = build_downstream_details(code, graph, workflows, task_names)
         snapshot = WorkflowSnapshot(
             country=args.country, project_code=str(row.get("project_code") or ""), workflow_code=code,
@@ -147,10 +182,12 @@ def scan(args):
             "review_downstream_count": len(downstream_assessment.review_codes),
             "dependent_downstream_count": len(dependent_downstream),
             "sub_process_downstream_count": len(sub_process_downstream),
+            "upstream_dependency_detail": format_upstream_details(upstream_details),
             "downstream_dependency_detail": format_downstream_details(downstream_details),
             "reasons": list(result.reasons),
             "evidence": {
                 "upstream": snapshot.upstream_workflows,
+                "upstream_details": upstream_details,
                 "active_downstream": downstream_assessment.active_codes,
                 "review_downstream": downstream_assessment.review_codes,
                 "dependent_downstream": dependent_downstream,

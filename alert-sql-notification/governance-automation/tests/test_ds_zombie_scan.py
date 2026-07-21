@@ -6,7 +6,10 @@ from governance_automation.ds_dependency_graph import build_dependency_graph
 from governance_automation.ds_zombie_classifier import classify_workflow
 from governance_automation.ds_zombie_dependency_policy import assess_downstream_activity
 from governance_automation.ds_zombie_models import EvidenceState, WorkflowSnapshot
-from remote_scripts.ds_zombie_scan import build_downstream_details, format_downstream_details, parse_time
+from remote_scripts.ds_zombie_scan import (
+    build_downstream_details, build_upstream_details, format_downstream_details,
+    format_upstream_details, parse_time,
+)
 from governance_automation.ds_zombie_pipeline import build_summary
 
 
@@ -98,6 +101,24 @@ class DependencyGraphTests(unittest.TestCase):
 
     def test_parse_time_accepts_mysql_datetime(self):
         self.assertEqual(parse_time("2026-07-21 10:30:00").year, 2026)
+
+    def test_upstream_detail_has_project_workflow_and_task(self):
+        graph = build_dependency_graph(
+            relation_rows=[],
+            task_rows=[{
+                "workflow_code": "consumer", "task_code": "task1", "task_type": "DEPENDENT",
+                "task_params": json.dumps({"dependence": {"dependTaskList": [{"dependItemList": [{
+                    "definitionCode": "producer", "depTaskCode": "task2",
+                }]}]}}),
+            }],
+        )
+        details = build_upstream_details(
+            "consumer", graph,
+            {"producer": {"project_name": "项目B", "workflow_name": "生产工作流"}},
+            {("producer", "task2"): "产出数据"},
+        )
+        self.assertIn("项目名称：项目B；工作流：生产工作流；任务：产出数据；类型：依赖任务", format_upstream_details(details))
+        self.assertEqual(format_upstream_details([]), "无上游依赖")
 
 
 class DownstreamActivityTests(unittest.TestCase):
