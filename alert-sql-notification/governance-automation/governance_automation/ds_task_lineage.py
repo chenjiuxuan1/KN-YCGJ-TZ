@@ -10,7 +10,7 @@ from .sql_fingerprint import strip_sql_comments
 
 _NAME = r"(?:`?([a-zA-Z_][\w]*(?:\.[a-zA-Z_][\w]*){0,2})`?)"
 _WRITE_RE = re.compile(
-    r"\b(?:insert\s+(?:overwrite\s+)?(?:table\s+)?|merge\s+into\s+|replace\s+into\s+)" + _NAME,
+    r"\b(?:insert\s+(?:(?:overwrite|into)\s+)*(?:table\s+)?|merge\s+into\s+|replace\s+into\s+)" + _NAME,
     re.IGNORECASE,
 )
 _CREATE_AS_RE = re.compile(

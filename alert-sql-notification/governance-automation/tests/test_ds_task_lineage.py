@@ -13,6 +13,13 @@ class TaskLineageTests(unittest.TestCase):
         self.assertEqual(evidence.read_tables, ("dim.users", "raw.orders"))
         self.assertEqual(evidence.status, "available")
 
+    def test_extracts_target_from_insert_overwrite_into_syntax(self):
+        evidence = extract_task_table_evidence(
+            "INSERT OVERWRITE INTO dw.order_summary SELECT * FROM raw.orders"
+        )
+        self.assertEqual(evidence.write_tables, ("dw.order_summary",))
+        self.assertEqual(evidence.read_tables, ("raw.orders",))
+
     def test_dynamic_script_is_incomplete_not_empty(self):
         evidence = extract_task_table_evidence("spark.sql(sql_text)")
         self.assertEqual(evidence.status, "incomplete")
