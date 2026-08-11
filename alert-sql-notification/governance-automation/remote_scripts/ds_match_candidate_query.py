@@ -490,6 +490,35 @@ def discover_wattrel_connection(args: argparse.Namespace) -> MysqlConnection | N
     return MysqlConnection(host=host, port=port, database=database, user=user, password=password)
 
 
+def decode_mysql_batch_value(value: str | None) -> str:
+    """Decode mysql --batch escaping without splitting multiline column values."""
+    # MYSQL_BATCH_MULTILINE_SAFE_V5_41
+    if value is None or value == r"\N":
+        return ""
+    escape_map = {
+        "0": "\0",
+        "n": "\n",
+        "r": "\r",
+        "t": "\t",
+        "Z": "\x1a",
+        "\\": "\\",
+    }
+    output: list[str] = []
+    index = 0
+    while index < len(value):
+        current = value[index]
+        if current == "\\" and index + 1 < len(value):
+            escaped = value[index + 1]
+            replacement = escape_map.get(escaped)
+            if replacement is not None:
+                output.append(replacement)
+                index += 2
+                continue
+        output.append(current)
+        index += 1
+    return "".join(output)
+
+
 def query_mysql_rows(connection: MysqlConnection, sql: str, timeout: int = 180) -> list[dict[str, str]]:
     env = os.environ.copy()
     env["MYSQL_PWD"] = connection.password
@@ -501,7 +530,6 @@ def query_mysql_rows(connection: MysqlConnection, sql: str, timeout: int = 180) 
             "-u" + connection.user,
             "--default-character-set=utf8mb4",
             "--batch",
-            "--raw",
             connection.database,
             "-e",
             sql,
@@ -510,7 +538,10 @@ def query_mysql_rows(connection: MysqlConnection, sql: str, timeout: int = 180) 
         timeout=timeout,
     )
     reader = csv.DictReader(raw.splitlines(), delimiter="\t")
-    return [dict(row) for row in reader]
+    return [
+        {str(key): decode_mysql_batch_value(value) for key, value in row.items() if key is not None}
+        for row in reader
+    ]
 
 
 def quote_sql_literal(value: str) -> str:
@@ -1412,6 +1443,11 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--log-limit", type=int, default=10, help="Max candidate instance logs to read locally.")
     parser.add_argument("--log-tail-bytes", type=int, default=200000, help="Max tail bytes read from each local task log.")
     parser.add_argument("--sql-text-b64", default="", help="Base64-encoded abnormal SQL text for DB-side filtering.")
+    parser.add_argument(
+        "--sql-text-b64-file",
+        default="",
+        help="Path to a file containing Base64-encoded abnormal SQL text. Takes precedence over --sql-text-b64.",
+    )
     parser.add_argument("--ds-db-host", default="", help="Optional DS metadata MySQL host override.")
     parser.add_argument("--ds-db-port", default="", help="Optional DS metadata MySQL port override.")
     parser.add_argument("--ds-db-user", default="", help="Optional DS metadata MySQL user override.")
@@ -1463,7 +1499,12 @@ def main() -> None:
                 raise discover_error
             connection = configured
         wattrel_connection = discover_wattrel_connection(args)
-        source_sql = decode_base64_text(args.sql_text_b64)
+        source_sql_b64 = args.sql_text_b64
+        if args.sql_text_b64_file:
+            # Keep large SQL payloads out of argv. This is read-only and the
+            # caller owns lifecycle cleanup for the temporary payload file.
+            source_sql_b64 = Path(args.sql_text_b64_file).read_text(encoding="utf-8")
+        source_sql = decode_base64_text(source_sql_b64)
         account_hints = parse_account_hints_json(args.account_hints_json)
         script_filter_sql, filter_tables = build_script_filter_sql(source_sql)
         sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(

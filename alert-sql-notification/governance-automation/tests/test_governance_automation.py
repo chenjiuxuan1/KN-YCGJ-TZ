@@ -67,6 +67,39 @@ class GovernanceAutomationTests(unittest.TestCase):
         self.assertEqual(meta["ds_host_gate"], "unverified")
         self.assertEqual(meta["ds_host_gate_reason"], "missing-alert-host-ip")
 
+    def test_remote_mysql_reader_preserves_multiline_task_params_as_one_row(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+
+        captured_command = []
+
+        def fake_run_command(command, **kwargs):
+            captured_command.extend(command)
+            return (
+                "project_name\tworkflow_name\ttask_name\tscript_content\n"
+                "数仓\tDWS\tdws_metric\tselect *\\nfrom dwd.source\\twhere id = 1\\\\2\n"
+            )
+
+        original_run_command = module.run_command
+        module.run_command = fake_run_command
+        try:
+            rows = module.query_mysql_rows(
+                module.MysqlConnection("host", "3306", "db", "user", "pwd"),
+                "SELECT 1",
+            )
+        finally:
+            module.run_command = original_run_command
+
+        self.assertNotIn("--raw", captured_command)
+        self.assertEqual(len(rows), 1)
+        self.assertEqual(rows[0]["project_name"], "数仓")
+        self.assertEqual(rows[0]["script_content"], "select *\nfrom dwd.source\twhere id = 1\\2")
+
     def test_remote_ds_match_does_not_treat_derived_mv_task_as_target_table(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
