@@ -106,3 +106,13 @@ mysql
 - n8n 导出的 workflow JSON 可能包含 API Key、DB 密码等敏感信息，本目录不提交 `outputs/`。
 - 生产接入时，数据库密码、API Key、机器人 botId 等参数应通过 n8n 凭证或环境变量注入。
 - 第一版可以先用于生成治理表与通知候选；自动下线动作建议在业务确认链路稳定后再开启。
+
+## 数据治理 Agent 新增远端脚本
+
+为「数据治理 Agent」工具集新增的只读/安全释放脚本（n8n 通过 SSH 调用，见 `skills/数据治理工具集.openapi.yaml`）：
+
+- `remote_scripts/sr_zombie_query.py`：只读查询 StarRocks 僵尸表候选（`gov_sr_zombie_detail_*` / 白名单），支持 `query_candidates / query_detail_all / query_whitelist / validate`。只执行 SELECT，不 Rename/Backup/Drop。连接使用 `SR_` 前缀环境变量（`SR_HOST/SR_PORT/SR_USER/SR_PASSWORD/SR_DATABASE`，默认端口 9030）。
+- `remote_scripts/governance_release.py`：受控释放动作 `freeze_table`（StarRocks D11 式 Rename 冻结，不 Drop）与 `disable_ds_task`（DS OpenAPI 下线）。必须 `--confirm-token` 匹配环境变量 `GOVERNANCE_CONFIRM_TOKEN`，默认 `--dry-run`。
+- `remote_scripts/weekly_governance.py`：复用周度治理流水线，输出有界 JSON 摘要，不写数据库。
+
+安全约定：所有脚本默认 dry-run；写动作（释放/停用/冻结）必须经人工确认令牌；删除/Drop 一律走独立人工审批。
