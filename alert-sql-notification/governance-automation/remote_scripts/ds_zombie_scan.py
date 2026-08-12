@@ -26,6 +26,11 @@ from governance_automation.ds_task_lineage import (
     build_table_consumers, extract_task_table_evidence, parse_task_params, task_script,
 )
 
+try:
+    from ds_match_candidate_query import DS_COUNTRY_CONFIG
+except Exception:  # pragma: no cover - optional fallback
+    DS_COUNTRY_CONFIG = {}
+
 
 DEPENDENCY_DETAIL_AVAILABLE = "available"
 DEPENDENCY_DETAIL_NONE = "none"
@@ -37,6 +42,18 @@ def as_bool(value):
     if value is None:
         return None
     return str(value).lower() in ("1", "true", "online")
+
+
+def builtin_ds_config(country):
+    builtin = DS_COUNTRY_CONFIG.get(country) or {}
+    return {
+        "host": builtin.get("host", ""),
+        "port": int(builtin.get("port", "3306")),
+        "user": builtin.get("user", ""),
+        "password": os.environ.get(str(builtin.get("password_env", "")), ""),
+        "database": builtin.get("database", ""),
+        "charset": "utf8mb4",
+    }
 
 
 def parse_time(value):
@@ -192,6 +209,9 @@ def build_task_rows(workflow_row, tasks, table_consumers=None):
 def scan(args):
     config = read_mysql_config_from_env()
     missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
+    if missing:
+        config = builtin_ds_config(args.country)
+        missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
     if missing:
         raise RuntimeError("missing DS environment: " + ",".join(missing))
     rows = DsZombieRepository(config).fetch_scan_rows(
