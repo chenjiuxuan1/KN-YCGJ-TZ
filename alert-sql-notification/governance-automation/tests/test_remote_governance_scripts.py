@@ -75,10 +75,15 @@ class GovernanceReleaseTests(unittest.TestCase):
 
 
 class WeeklyGovernanceTests(unittest.TestCase):
-    def test_missing_input_reports_error(self):
-        # project-owners is required; omitting it should fail with argparse exit code 2
-        result = run_script("weekly_governance.py", "--country", "cn")
-        self.assertEqual(result.returncode, 2)
+    def test_missing_data_reports_clean_error(self):
+        # Accepts the OpenAPI/n8n contract (window args + dry-run) and returns a
+        # clean JSON error when the required data files are not provided.
+        result = run_script("weekly_governance.py", "--country", "cn",
+                            "--window-start", "2026-08-03", "--window-end", "2026-08-09", "--dry-run")
+        self.assertEqual(result.returncode, 1)
+        payload = json.loads(result.stdout)
+        self.assertFalse(payload["success"])
+        self.assertEqual(payload["error"]["code"], "WEEKLY_GOVERNANCE_NO_DATA")
 
 
 if __name__ == "__main__":

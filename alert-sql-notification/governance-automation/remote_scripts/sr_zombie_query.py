@@ -111,6 +111,9 @@ def main() -> int:
 
     try:
         config = read_mysql_config_from_env(args.db_prefix)
+        if not os.getenv(f"{args.db_prefix}_PORT"):
+            # StarRocks FE 默认查询端口为 9030（shared helper 默认 3306）。
+            config["port"] = 9030
         if not config["host"] or not config["user"]:
             raise RuntimeError(f"缺少 {args.db_prefix}_HOST / {args.db_prefix}_USER 环境变量，无法连接 StarRocks")
         rows = query_mysql_records(
