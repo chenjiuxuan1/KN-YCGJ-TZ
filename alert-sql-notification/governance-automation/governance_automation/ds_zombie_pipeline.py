@@ -1,6 +1,8 @@
 from collections import Counter
 from typing import Any, Dict, Iterable, List
 
+MAX_TOP_CANDIDATES = 200
+
 
 def build_summary(
     country: str,
@@ -18,7 +20,9 @@ def build_summary(
     levels = Counter(str(row.get("level") or "C") for row in rows)
     top = sorted(rows, key=lambda row: int(row.get("score_total") or 0), reverse=True)
     if top_limit:
-        top = top[:top_limit]
+        top = top[:min(top_limit, MAX_TOP_CANDIDATES)]
+    else:
+        top = top[:MAX_TOP_CANDIDATES]
     return {
         "success": True,
         "batch_id": batch_id,
