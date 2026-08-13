@@ -15,20 +15,54 @@ import json
 import os
 import re
 import sys
+import urllib.error
+import urllib.request
 from pathlib import Path
 
 ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
-from governance_automation.ds_metadata_exporter import (
-    query_mysql_records,
-    read_mysql_config_from_env,
-)
-
 VALID_COUNTRIES = ("cn", "ph", "ine", "mx", "th", "pk")
 VALID_OPERATIONS = ("query_candidates", "query_detail_all", "query_whitelist", "validate")
 BATCH_RE = re.compile(r"^\d{6}$")
 SYSTEM_SCHEMAS = ("information_schema", "mysql", "sys", "_statistics_", "starrocks_audit_db__", "governance")
+DEFAULT_BASE_URL = "https://sr-box.kuainiu.io"
+COUNTRY_GATEWAY_MAP = {"cn": "cn", "ine": "id", "mx": "mx", "ph": "ph", "pk": "pk", "th": "th"}
+
+
+def gateway_execute(base_url, token, country, sql, page_size=100, timeout_sec=60):
+    url = base_url.rstrip("/") + "/api/rust/v1/sr-sandboxes/sql-executions"
+    payload = {
+        "taskName": "governance-zombie-table-query",
+        "country": country,
+        "purpose": "agent",
+        "accessMode": "local",
+        "sqlMode": "query",
+        "sql": sql,
+        "page": 1,
+        "pageSize": page_size,
+        "timeoutSec": timeout_sec,
+    }
+    headers = {
+        "Accept": "application/json",
+        "Content-Type": "application/json",
+        "Authorization": "Bearer " + token,
+    }
+    body = json.dumps(payload, ensure_ascii=False).encode("utf-8")
+    request = urllib.request.Request(url, data=body, headers=headers, method="POST")
+    try:
+        with urllib.request.urlopen(request, timeout=timeout_sec) as response:
+            text = response.read().decode("utf-8")
+    except urllib.error.HTTPError as exc:
+        raise RuntimeError(
+            f"网关 HTTP {exc.code}: {exc.read().decode('utf-8', 'replace')[:500]}"
+        ) from exc
+    except urllib.error.URLError as exc:
+        raise RuntimeError(f"无法连接网关 {url}: {exc.reason}") from exc
+    data = json.loads(text) if text else {}
+    if not data.get("success"):
+        raise RuntimeError("网关返回失败: " + str(data)[:500])
+    return data.get("data", {})
 
 
 def as_bool(value):
@@ -92,6 +126,8 @@ def main() -> int:
     parser.add_argument("--min-size-gb", type=float, default=0.0)
     parser.add_argument("--limit", type=int, default=100)
     parser.add_argument("--db-prefix", default="SR", help="环境变量前缀（SR => SR_HOST/SR_PORT/...）")
+    parser.add_argument("--token", default="", help="Fuxi Gateway token；缺省读 FUXI_API_TOKEN")
+    parser.add_argument("--base-url", default="", help="Fuxi Gateway 地址；缺省读 FUXI_BASE_URL")
     parser.add_argument("--dry-run", action="store_true", help="只打印 SQL，不连接数据库")
     args = parser.parse_args()
 
@@ -110,17 +146,16 @@ def main() -> int:
         return 0
 
     try:
-        config = read_mysql_config_from_env(args.db_prefix)
-        if not os.getenv(f"{args.db_prefix}_PORT"):
-            # StarRocks FE 默认查询端口为 9030（shared helper 默认 3306）。
-            config["port"] = 9030
-        if not config["host"] or not config["user"]:
-            raise RuntimeError(f"缺少 {args.db_prefix}_HOST / {args.db_prefix}_USER 环境变量，无法连接 StarRocks")
-        rows = query_mysql_records(
-            host=config["host"], port=config["port"], user=config["user"],
-            password=config["password"], database=config["database"] or "governance",
-            sql=sql, charset=config.get("charset", "utf8mb4"),
+        token = (args.token or os.environ.get("FUXI_API_TOKEN", "")).strip()
+        if not token:
+            raise RuntimeError("缺少 FUXI_API_TOKEN / --token，无法调用 Fuxi Gateway")
+        base_url = (args.base_url or os.environ.get("FUXI_BASE_URL", "")).strip().rstrip("/") or DEFAULT_BASE_URL
+        gw_country = COUNTRY_GATEWAY_MAP.get(args.country, args.country)
+        data = gateway_execute(
+            base_url, token, gw_country, sql,
+            page_size=max(int(args.limit), 1),
         )
+        rows = data.get("rows", []) if isinstance(data, dict) else (data or [])
         payload = {"success": True, "country": args.country, "operation": args.operation,
                    "batch_id": sanitize_batch_id(args.batch_id), "row_count": len(rows),
                    "rows": rows[:args.limit]}
