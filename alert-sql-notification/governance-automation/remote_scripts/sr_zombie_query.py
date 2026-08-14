@@ -191,7 +191,6 @@ def main() -> int:
             raise RuntimeError("缺少 FUXI_API_TOKEN / --token，无法调用 Fuxi Gateway")
         base_url = (args.base_url or os.environ.get("FUXI_BASE_URL", "")).strip().rstrip("/") or DEFAULT_BASE_URL
         gw_country = COUNTRY_GATEWAY_MAP.get(args.country, args.country)
-        ensure_governance_tables(base_url, token, gw_country, args.batch_id)
         data = gateway_execute(
             base_url, token, gw_country, sql,
             page_size=max(int(args.limit), 1),
