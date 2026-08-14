@@ -80,8 +80,8 @@ def sanitize_batch_id(batch_id: str) -> str:
 
 def build_sql(operation: str, batch_id: str, min_size_gb: float, limit: int) -> str:
     batch = sanitize_batch_id(batch_id)
-    start_table = f"governance.gov_sr_zombie_detail_{batch}_start"
-    end_table = f"governance.gov_sr_zombie_detail_{batch}_end"
+    start_table = f"testdb.gov_sr_zombie_detail_{batch}_start"
+    end_table = f"testdb.gov_sr_zombie_detail_{batch}_end"
     if operation == "query_candidates":
         return (
             f"SELECT table_schema, table_name, table_rows, size_gb, pv_30d, uv_30d, "
@@ -95,7 +95,7 @@ def build_sql(operation: str, batch_id: str, min_size_gb: float, limit: int) -> 
         return (
             f"SELECT batch_id, table_schema, table_name, table_rows, size_gb, pv_30d, uv_30d, "
             f"status, process_status, biz_decision, owner, non_offline_reason, remark\n"
-            f"FROM governance.gov_sr_zombie_detail_all\n"
+            f"FROM testdb.gov_sr_zombie_detail_all\n"
             f"WHERE batch_id = '{batch}'\n"
             f"ORDER BY size_gb DESC\n"
             f"LIMIT {int(limit)}"
@@ -103,7 +103,7 @@ def build_sql(operation: str, batch_id: str, min_size_gb: float, limit: int) -> 
     if operation == "query_whitelist":
         return (
             f"SELECT table_schema, table_name, reason, source, owner, created_at\n"
-            f"FROM governance.gov_sr_zombie_whitelist\n"
+            f"FROM testdb.gov_sr_zombie_whitelist\n"
             f"ORDER BY updated_at DESC\n"
             f"LIMIT {int(limit)}"
         )
@@ -115,6 +115,46 @@ def build_sql(operation: str, batch_id: str, min_size_gb: float, limit: int) -> 
         )
     raise ValueError(f"不支持的 operation: {operation}")
 
+
+
+
+DETAIL_COLUMNS = (
+    "batch_id VARCHAR(32)",
+    "table_schema VARCHAR(256)",
+    "table_name VARCHAR(256)",
+    "table_rows BIGINT",
+    "size_bytes BIGINT",
+    "size_gb DOUBLE",
+    "pv_30d BIGINT",
+    "uv_30d BIGINT",
+    "status VARCHAR(64)",
+    "process_status VARCHAR(64)",
+    "biz_decision VARCHAR(64)",
+    "owner VARCHAR(256)",
+    "non_offline_reason VARCHAR(1024)",
+    "remark VARCHAR(1024)",
+    "frozen_table_name VARCHAR(256)",
+    "freeze_at DATETIME",
+    "backup_snapshot VARCHAR(1024)",
+    "backup_at DATETIME",
+    "action_error VARCHAR(1024)",
+    "created_at DATETIME",
+    "updated_at DATETIME",
+)
+
+
+def ensure_governance_tables(base_url, token, gw_country, batch_id):
+    """CREATE TABLE IF NOT EXISTS the zombie governance tables in testdb."""
+    cols = ", ".join(DETAIL_COLUMNS)
+    batch = sanitize_batch_id(batch_id)
+    statements = [
+        f"CREATE TABLE IF NOT EXISTS testdb.gov_sr_zombie_detail_{batch}_start ({cols})",
+        f"CREATE TABLE IF NOT EXISTS testdb.gov_sr_zombie_detail_{batch}_end ({cols})",
+        f"CREATE TABLE IF NOT EXISTS testdb.gov_sr_zombie_detail_all ({cols})",
+        "CREATE TABLE IF NOT EXISTS testdb.gov_sr_zombie_whitelist (table_schema VARCHAR(256), table_name VARCHAR(256), reason VARCHAR(1024), source VARCHAR(256), owner VARCHAR(256), created_at DATETIME, updated_at DATETIME)",
+    ]
+    for statement in statements:
+        gateway_execute(base_url, token, gw_country, statement, page_size=1, timeout_sec=60)
 
 def main() -> int:
     parser = argparse.ArgumentParser(
@@ -151,6 +191,7 @@ def main() -> int:
             raise RuntimeError("缺少 FUXI_API_TOKEN / --token，无法调用 Fuxi Gateway")
         base_url = (args.base_url or os.environ.get("FUXI_BASE_URL", "")).strip().rstrip("/") or DEFAULT_BASE_URL
         gw_country = COUNTRY_GATEWAY_MAP.get(args.country, args.country)
+        ensure_governance_tables(base_url, token, gw_country, args.batch_id)
         data = gateway_execute(
             base_url, token, gw_country, sql,
             page_size=max(int(args.limit), 1),
