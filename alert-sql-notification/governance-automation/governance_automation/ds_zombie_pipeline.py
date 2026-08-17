@@ -2,7 +2,7 @@ from collections import Counter, defaultdict, deque
 from itertools import groupby
 from typing import Any, Dict, Iterable, List
 
-MAX_TOP_CANDIDATES = 200
+MAX_TOP_CANDIDATES = 3000
 
 
 def _project_bucket_key(row: Dict[str, Any]) -> str:
