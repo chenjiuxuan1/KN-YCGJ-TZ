@@ -1,7 +1,38 @@
-from collections import Counter
+from collections import Counter, defaultdict, deque
+from itertools import groupby
 from typing import Any, Dict, Iterable, List
 
 MAX_TOP_CANDIDATES = 200
+
+
+def _project_bucket_key(row: Dict[str, Any]) -> str:
+    return str(row.get("project_code") or row.get("workflow_code") or "")
+
+
+def _stratify_by_project(rows: List[Dict[str, Any]]) -> List[Dict[str, Any]]:
+    """Sort by score_total desc, but round-robin across projects within each
+    tied score so a handful of early-created (low workflow_code) projects
+    can't consume the whole top-N budget when many rows share a score."""
+    ordered = sorted(rows, key=lambda row: int(row.get("score_total") or 0), reverse=True)
+    result: List[Dict[str, Any]] = []
+    for _, group_iter in groupby(ordered, key=lambda row: int(row.get("score_total") or 0)):
+        group = list(group_iter)
+        if len(group) <= 1:
+            result.extend(group)
+            continue
+        buckets: Dict[str, deque] = defaultdict(deque)
+        bucket_order: List[str] = []
+        for row in group:
+            key = _project_bucket_key(row)
+            if key not in buckets:
+                bucket_order.append(key)
+            buckets[key].append(row)
+        while bucket_order:
+            for key in list(bucket_order):
+                result.append(buckets[key].popleft())
+                if not buckets[key]:
+                    bucket_order.remove(key)
+    return result
 
 
 def build_summary(
@@ -18,7 +49,7 @@ def build_summary(
         raise ValueError("top_limit must be zero or greater")
     rows: List[Dict[str, Any]] = list(candidates)
     levels = Counter(str(row.get("level") or "C") for row in rows)
-    top = sorted(rows, key=lambda row: int(row.get("score_total") or 0), reverse=True)
+    top = _stratify_by_project(rows)
     if top_limit:
         top = top[:min(top_limit, MAX_TOP_CANDIDATES)]
     else:
