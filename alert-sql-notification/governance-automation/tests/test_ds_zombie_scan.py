@@ -244,6 +244,55 @@ class SummaryTests(unittest.TestCase):
         )
         self.assertEqual(len(summary["top_candidates"]), 150)
 
+    def test_tied_scores_are_not_monopolized_by_one_project(self):
+        # Two "veteran" projects (low project_code, sorted first by the
+        # upstream SQL's ORDER BY wd.code) contribute 300 tied-score rows
+        # each; ten other projects contribute only 5 tied-score rows each.
+        # Before stratification, the veteran projects alone would fill the
+        # entire top-20 budget purely due to insertion order.
+        candidates = []
+        for project in ("veteran-a", "veteran-b"):
+            for index in range(300):
+                candidates.append({
+                    "project_code": project,
+                    "workflow_code": f"{project}-{index}",
+                    "level": "A",
+                    "score_total": 80,
+                })
+        for project_index in range(10):
+            project = f"newer-{project_index}"
+            for index in range(5):
+                candidates.append({
+                    "project_code": project,
+                    "workflow_code": f"{project}-{index}",
+                    "level": "A",
+                    "score_total": 80,
+                })
+        summary = build_summary(
+            country="cn", batch_id="b1", score_version="v1",
+            scanned_workflows=len(candidates), candidates=candidates,
+            persisted_count=0, top_limit=20,
+        )
+        projects_in_top = {row["project_code"] for row in summary["top_candidates"]}
+        self.assertGreater(
+            len(projects_in_top), 2,
+            "top_candidates should span more than the two veteran projects "
+            "when scores are tied",
+        )
+
+    def test_stratification_preserves_score_ordering_when_no_ties(self):
+        candidates = [
+            {"project_code": "p", "workflow_code": str(index), "score_total": 100 - index}
+            for index in range(30)
+        ]
+        summary = build_summary(
+            country="th", batch_id="b1", score_version="v1", scanned_workflows=30,
+            candidates=candidates, persisted_count=0, top_limit=10,
+        )
+        scores = [row["score_total"] for row in summary["top_candidates"]]
+        self.assertEqual(scores, sorted(scores, reverse=True))
+        self.assertEqual(scores[0], 100)
+
 
 if __name__ == "__main__":
     unittest.main()
