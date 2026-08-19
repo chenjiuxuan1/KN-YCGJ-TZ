@@ -57,9 +57,12 @@ def classify_workflow(
     if snapshot.confirmed_retention:
         reasons.append("负责人已确认保留")
         return ScoreResult("D", "KEEP_CONFIRMED", score, tuple(reasons), detail)
-    if snapshot.workflow_online is True:
-        reasons.append("工作流定义仍上线")
-        return ScoreResult("D", "KEEP_ACTIVE", score, tuple(reasons), detail)
+    if snapshot.workflow_online is False:
+        reasons.append("工作流已下线，无需治理")
+        return ScoreResult("D", "ALREADY_OFFLINE", score, tuple(reasons), detail)
+    if snapshot.schedule_active is True:
+        reasons.append("存在当前生效的定时调度，保留")
+        return ScoreResult("D", "KEEP_SCHEDULED", score, tuple(reasons), detail)
     if snapshot.active_instance_present is True:
         reasons.append("存在运行中或等待中的实例")
         return ScoreResult("D", "KEEP_ACTIVE", score, tuple(reasons), detail)

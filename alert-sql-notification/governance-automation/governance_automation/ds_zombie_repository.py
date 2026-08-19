@@ -7,10 +7,15 @@ from .ds_metadata_exporter import query_mysql_records, quote_sql_literal
 
 def build_scan_sql(
     *, country: str, lookback_days: int = 30, project_name: str = "",
-    workflow_name: str = "", task_name: str = ""
+    workflow_name: str = "", task_name: str = "", release_state: str = "online"
 ) -> str:
     """Return one read-only query whose rows contain workflow, task and run evidence."""
     days = max(1, min(int(lookback_days), 365))
+    release_filter = ""
+    if release_state == "online":
+        release_filter = "\n  AND wd.release_state = 1"
+    elif release_state == "offline":
+        release_filter = "\n  AND wd.release_state = 0"
     return f"""
 SELECT {quote_sql_literal(country)} AS country,
        p.code AS project_code, p.name AS project_name,
@@ -58,7 +63,7 @@ LEFT JOIN (
 ) ss ON ss.workflow_code = wd.code
 WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or None)})
   AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name = {quote_sql_literal(workflow_name or None)})
-  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name = {quote_sql_literal(task_name or None)})
+  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name = {quote_sql_literal(task_name or None)}){release_filter}
 ORDER BY wd.code, td.code
 """.strip()
 

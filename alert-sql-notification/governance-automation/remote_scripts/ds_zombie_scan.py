@@ -217,6 +217,7 @@ def scan(args):
     rows = DsZombieRepository(config).fetch_scan_rows(
         country=args.country, lookback_days=args.lookback_days,
         project_name=args.project_name, workflow_name=args.workflow_name, task_name=args.task_name,
+        release_state=args.release_state,
     )
     workflows, relations, tasks, tasks_by_workflow, task_names = OrderedDict(), [], [], OrderedDict(), {}
     for row in rows:
@@ -291,6 +292,14 @@ def scan(args):
             downstream_workflows=downstream_assessment.active_codes,
         )
         result = classify_workflow(snapshot, score_version=args.score_version)
+        if snapshot.workflow_online is False:
+            schedule_status, schedule_status_cn = "OFFLINE", "已下线"
+        elif snapshot.schedule_active:
+            schedule_status, schedule_status_cn = "SCHEDULE_ACTIVE", "定时调度中"
+        elif snapshot.schedule_online:
+            schedule_status, schedule_status_cn = "SCHEDULE_STOPPED", "定时已停"
+        else:
+            schedule_status, schedule_status_cn = "MANUAL_ONLINE", "上线手动"
         if has_active_table_consumer:
             result = ScoreResult(
                 "D", "RETAIN_AND_ASSESS", result.score_total,
@@ -313,6 +322,8 @@ def scan(args):
             "source_schedule_online": snapshot.schedule_online,
             "source_schedule_active": snapshot.schedule_active,
             "source_workflow_online": snapshot.workflow_online,
+            "schedule_status": schedule_status,
+            "schedule_status_cn": schedule_status_cn,
             "source_active_instance_present": snapshot.active_instance_present,
             "active_downstream_count": len(downstream_assessment.active_codes),
             "review_downstream_count": len(downstream_assessment.review_codes),
@@ -362,6 +373,8 @@ def main():
     parser.add_argument("--workflow-name", default="")
     parser.add_argument("--task-name", default="")
     parser.add_argument("--score-version", default="v1")
+    parser.add_argument("--release-state", choices=("all", "online", "offline"), default="online",
+                        help="扫描工作流的上线状态：online=仅上线(默认)、offline=仅下线、all=全部")
     parser.add_argument("--top-limit", type=int, default=0,
                         help="Maximum CSV candidates to return; 0 returns all candidates.")
     parser.add_argument("--include-retained", action="store_true",
