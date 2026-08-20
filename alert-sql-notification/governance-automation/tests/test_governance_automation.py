@@ -20,6 +20,27 @@ from governance_automation.weekly_aggregator import aggregate_abnormal_sql
 
 
 class GovernanceAutomationTests(unittest.TestCase):
+    def _load_match_module(self):
+        script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
+        spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
+        self.assertIsNotNone(spec)
+        module = importlib.util.module_from_spec(spec)
+        assert spec and spec.loader
+        sys.modules["ds_match_candidate_query"] = module
+        spec.loader.exec_module(module)
+        return module
+
+    def test_extract_sql_tables_matches_backtick_and_qualified_spellings(self):
+        module = self._load_match_module()
+        plain = module.extract_sql_tables("select * from dm_wd_efficiency.ai_case_repay_call_detail")
+        backtick = module.extract_sql_tables("select * from `dm_wd_efficiency`.`ai_case_repay_call_detail`")
+        self.assertIn("dm_wd_efficiency.ai_case_repay_call_detail", plain)
+        self.assertIn("dm_wd_efficiency.ai_case_repay_call_detail", backtick)
+        targets = module.extract_target_tables(
+            "insert into `dwd`.`dwd_fox_call_history` select * from raw.orders"
+        )
+        self.assertIn("dwd.dwd_fox_call_history", targets)
+
     def test_ds_country_config_uses_password_environment_variable(self):
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)

@@ -26,7 +26,7 @@ def assess_downstream_activity(
             continue
         if (
             _truthy(row.get("schedule_active"))
-            or int(row.get("total_runs_30d") or 0) > 0
+            or int(row.get("total_runs_window") or row.get("total_runs_30d") or 0) > 0
             or _truthy(row.get("active_instance_present"))
         ):
             active.append(code)

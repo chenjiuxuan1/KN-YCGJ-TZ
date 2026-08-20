@@ -7,10 +7,24 @@ from .ds_metadata_exporter import query_mysql_records, quote_sql_literal
 
 def build_scan_sql(
     *, country: str, lookback_days: int = 30, project_name: str = "",
-    workflow_name: str = "", task_name: str = "", release_state: str = "online"
+    workflow_name: str = "", task_name: str = "", release_state: str = "online",
+    inactive_months: int = 0,
 ) -> str:
     """Return one read-only query whose rows contain workflow, task and run evidence."""
     days = max(1, min(int(lookback_days), 365))
+    months = max(1, min(int(inactive_months or 0), 120)) if int(inactive_months or 0) > 0 else 0
+    if months:
+        # Dynamic stale window: "no access for N months" is measured from the
+        # same instance table over INTERVAL N MONTH.
+        window_expr = f"SUM(start_time >= DATE_SUB(NOW(), INTERVAL {months} MONTH))"
+        failed_expr = f"SUM(start_time >= DATE_SUB(NOW(), INTERVAL {months} MONTH) AND state IN (6,9))"
+        window_unit = "'month'"
+        window_value = months
+    else:
+        window_expr = f"SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY))"
+        failed_expr = f"SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY) AND state IN (6,9))"
+        window_unit = "'day'"
+        window_value = days
     release_filter = ""
     if release_state == "online":
         release_filter = "\n  AND wd.release_state = 1"
@@ -29,6 +43,10 @@ SELECT {quote_sql_literal(country)} AS country,
        ist.last_run_time, ist.last_success_time, ist.last_failure_time,
        COALESCE(ist.total_runs_30d, 0) AS total_runs_30d,
        COALESCE(ist.failed_runs_30d, 0) AS failed_runs_30d,
+       COALESCE(ist.total_runs_window, 0) AS total_runs_window,
+       COALESCE(ist.failed_runs_window, 0) AS failed_runs_window,
+       {window_unit} AS scan_window_unit,
+       {window_value} AS scan_window_value,
        COALESCE(ist.active_instance_present, 0) AS active_instance_present
 FROM t_ds_project p
 JOIN t_ds_workflow_definition wd ON wd.project_code = p.code
@@ -48,6 +66,8 @@ LEFT JOIN (
          MAX(CASE WHEN state IN (6,9) THEN end_time END) AS last_failure_time,
          SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY)) AS total_runs_30d,
          SUM(start_time >= DATE_SUB(NOW(), INTERVAL {days} DAY) AND state IN (6,9)) AS failed_runs_30d,
+         {window_expr} AS total_runs_window,
+         {failed_expr} AS failed_runs_window,
          MAX(CASE WHEN state IN (0,1,2,4,8,10,11) THEN 1 ELSE 0 END) AS active_instance_present
   FROM t_ds_workflow_instance
   GROUP BY workflow_definition_code

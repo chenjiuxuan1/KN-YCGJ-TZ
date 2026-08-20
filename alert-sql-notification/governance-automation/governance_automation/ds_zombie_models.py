@@ -24,6 +24,10 @@ class WorkflowSnapshot:
     last_failure_time: Optional[datetime] = None
     total_runs_30d: Optional[int] = None
     failed_runs_30d: Optional[int] = None
+    total_runs_window: Optional[int] = None
+    failed_runs_window: Optional[int] = None
+    inactive_months: int = 0
+    scan_window_label: str = "30天"
     schedule_online: Optional[bool] = None
     schedule_active: Optional[bool] = None
     workflow_online: Optional[bool] = None

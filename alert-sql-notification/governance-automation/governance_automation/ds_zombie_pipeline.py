@@ -44,6 +44,7 @@ def build_summary(
     persisted_count: int,
     top_limit: int = 0,
     scanned_level_summary: Dict[str, int] = None,
+    scan_window: str = "",
 ) -> Dict[str, Any]:
     if top_limit < 0:
         raise ValueError("top_limit must be zero or greater")
@@ -59,6 +60,7 @@ def build_summary(
         "batch_id": batch_id,
         "country": country,
         "score_version": score_version,
+        "scan_window": scan_window,
         "scanned_workflows": scanned_workflows,
         "candidate_count": len(rows),
         "persisted_count": persisted_count,

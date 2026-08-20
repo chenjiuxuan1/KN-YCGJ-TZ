@@ -34,9 +34,12 @@ def classify_workflow(
         reasons.append("超过3个月未更新")
 
     if snapshot.instance_scan_complete:
-        if snapshot.total_runs_30d == 0:
-            detail["zero_runs_30d"] = 25
-            reasons.append("近30天零运行")
+        zero_run_window = snapshot.total_runs_window
+        if zero_run_window is None:
+            zero_run_window = snapshot.total_runs_30d
+        if zero_run_window == 0:
+            detail["zero_runs_window"] = 25
+            reasons.append("近%s零运行" % snapshot.scan_window_label)
         if run_days is None or run_days >= 180:
             detail["stale_run_6m"] = 25
             reasons.append("超过6个月未运行")
@@ -51,6 +54,12 @@ def classify_workflow(
     has_downstream = bool(snapshot.downstream_workflows)
     uncertain = not snapshot.dependency_scan_complete or not snapshot.instance_scan_complete
     recent_active = bool(snapshot.total_runs_30d and snapshot.total_runs_30d > 0)
+    # When a dynamic month window is configured, "recently active" protection
+    # follows the same window so a run inside it keeps the workflow.
+    window_active = (
+        bool(snapshot.total_runs_window and snapshot.total_runs_window > 0)
+        if snapshot.total_runs_window is not None else recent_active
+    )
 
     if snapshot.access_evidence == EvidenceState.UNKNOWN:
         reasons.append("访问证据未接入")
@@ -72,7 +81,7 @@ def classify_workflow(
             "D", "RETAIN_AND_ASSESS", score, tuple(reasons), detail,
             protected_by_dependency=True,
         )
-    if recent_active or (run_days is not None and run_days <= 30):
+    if window_active or recent_active or (run_days is not None and run_days <= 30):
         reasons.append("近期仍有运行")
         return ScoreResult("D", "KEEP_ACTIVE", score, tuple(reasons), detail)
     if uncertain:

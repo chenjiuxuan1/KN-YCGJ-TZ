@@ -41,6 +41,19 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("workflow_definition_code AS workflow_code", sql)
         self.assertNotIn("t_ds_process_definition", sql)
 
+    def test_dynamic_month_window_adds_total_runs_window(self):
+        sql = build_scan_sql(country="th", lookback_days=30, inactive_months=3)
+        self.assertIn("INTERVAL 3 MONTH", sql)
+        self.assertIn("total_runs_window", sql)
+        self.assertIn("scan_window_unit", sql)
+        self.assertIn("'month'", sql)
+
+    def test_default_window_falls_back_to_days(self):
+        sql = build_scan_sql(country="th", lookback_days=30)
+        self.assertIn("INTERVAL 30 DAY", sql)
+        self.assertIn("total_runs_window", sql)
+        self.assertIn("'day'", sql)
+
 
 class StoreTests(unittest.TestCase):
     def test_candidate_upsert_has_idempotent_key(self):

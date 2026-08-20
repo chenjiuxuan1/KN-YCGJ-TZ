@@ -216,6 +216,7 @@ def scan(args):
         raise RuntimeError("missing DS environment: " + ",".join(missing))
     rows = DsZombieRepository(config).fetch_scan_rows(
         country=args.country, lookback_days=args.lookback_days,
+        inactive_months=args.min_stale_months,
         project_name=args.project_name, workflow_name=args.workflow_name, task_name=args.task_name,
         release_state=args.release_state,
     )
@@ -246,7 +247,7 @@ def scan(args):
             "sql": task_script(parse_task_params(task.get("task_params"))),
             "params": parse_task_params(task.get("task_params")),
             "active": bool(as_bool(workflows.get(code, {}).get("schedule_active")))
-                or int(workflows.get(code, {}).get("total_runs_30d") or 0) > 0
+                or int(workflows.get(code, {}).get("total_runs_window") or workflows.get(code, {}).get("total_runs_30d") or 0) > 0
                 or bool(as_bool(workflows.get(code, {}).get("active_instance_present"))),
         }
         for code, group in tasks_by_workflow.items() for task in group.values()
@@ -279,13 +280,19 @@ def scan(args):
             for evidence in task_evidences for table in evidence.write_tables
             for consumer in table_consumers.get(table, []) if consumer["workflow_code"] != code
         )
+        window_value = int(row.get("scan_window_value") or 30)
+        window_label = ("%d个月" % window_value) if str(row.get("scan_window_unit") or "day") == "month" else ("%d天" % window_value)
         snapshot = WorkflowSnapshot(
             country=args.country, project_code=str(row.get("project_code") or ""), workflow_code=code,
             project_name=str(row.get("project_name") or ""), workflow_name=str(row.get("workflow_name") or ""),
             owner_name=str(row.get("owner_name") or ""), last_update_time=parse_time(row.get("last_update_time")),
             last_run_time=parse_time(row.get("last_run_time")), last_success_time=parse_time(row.get("last_success_time")),
             last_failure_time=parse_time(row.get("last_failure_time")), total_runs_30d=int(row.get("total_runs_30d") or 0),
-            failed_runs_30d=int(row.get("failed_runs_30d") or 0), schedule_online=as_bool(row.get("schedule_online")),
+            failed_runs_30d=int(row.get("failed_runs_30d") or 0),
+            total_runs_window=int(row.get("total_runs_window") or 0),
+            failed_runs_window=int(row.get("failed_runs_window") or 0),
+            inactive_months=int(args.min_stale_months or 0), scan_window_label=window_label,
+            schedule_online=as_bool(row.get("schedule_online")),
             schedule_active=as_bool(row.get("schedule_active")), workflow_online=as_bool(row.get("workflow_online")),
             active_instance_present=as_bool(row.get("active_instance_present")), instance_scan_complete=True,
             dependency_scan_complete=graph.scan_complete[code], upstream_workflows=tuple(sorted(graph.workflow_upstream[code])),
@@ -357,9 +364,14 @@ def scan(args):
         gov = read_mysql_config_from_env("GOVERNANCE_DB")
         persisted = GovernanceStore(gov, os.getenv("GOVERNANCE_DB_TABLE", "ds_zombie_workflow_governance")).persist(workflow_candidates)
     scanned_levels = Counter(str(row.get("level") or "C") for row in workflow_rows)
+    first_row = next(iter(workflow_rows), {})
+    window_value = int(first_row.get("scan_window_value") or (args.lookback_days if not args.min_stale_months else args.min_stale_months))
+    window_unit = "month" if str(first_row.get("scan_window_unit") or "") == "month" or args.min_stale_months else "day"
+    scan_window = "%d%s" % (window_value, "个月" if window_unit == "month" else "天")
     return build_summary(
         args.country, args.batch_id, args.score_version, len(workflows), candidates, persisted, args.top_limit,
         scanned_level_summary={level: scanned_levels.get(level, 0) for level in "ABCD"},
+        scan_window=scan_window,
     )
 
 
@@ -368,7 +380,8 @@ def main():
     parser.add_argument("--country", required=True, choices=("cn", "ph", "ine", "mx", "th", "pk"))
     parser.add_argument("--batch-id", required=True)
     parser.add_argument("--lookback-days", type=int, default=30)
-    parser.add_argument("--min-stale-months", type=int, default=3)
+    parser.add_argument("--min-stale-months", type=int, default=3,
+                        help="动态零访问窗口：判定'近N个月零运行'的月数（如 3=近3个月无人访问才判僵尸，0 回退到 lookback-days 天窗口）")
     parser.add_argument("--project-name", default="")
     parser.add_argument("--workflow-name", default="")
     parser.add_argument("--task-name", default="")

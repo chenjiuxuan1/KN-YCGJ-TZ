@@ -26,8 +26,48 @@ class TaskLineageTests(unittest.TestCase):
             "from collections import defaultdict\n"
             "INSERT INTO hive.temp.orders SELECT * FROM hive.raw.orders"
         )
-        self.assertEqual(evidence.write_tables, ("hive.temp.orders",))
-        self.assertEqual(evidence.read_tables, ("hive.raw.orders",))
+        # catalog-prefixed names collapse to the last two segments so they can
+        # match the same physical table written as db.table elsewhere.
+        self.assertEqual(evidence.write_tables, ("temp.orders",))
+        self.assertEqual(evidence.read_tables, ("raw.orders",))
+
+    def test_backtick_and_catalog_prefixed_spellings_collapse_to_same_key(self):
+        plain = extract_task_table_evidence(
+            "SELECT * FROM dm_wd_efficiency.ai_case_repay_call_detail"
+        )
+        backtick = extract_task_table_evidence(
+            "SELECT * FROM `dm_wd_efficiency`.`ai_case_repay_call_detail`"
+        )
+        catalog = extract_task_table_evidence(
+            "SELECT * FROM catalog.dm_wd_efficiency.ai_case_repay_call_detail"
+        )
+        self.assertEqual(plain.read_tables, ("dm_wd_efficiency.ai_case_repay_call_detail",))
+        self.assertEqual(backtick.read_tables, plain.read_tables)
+        self.assertEqual(catalog.read_tables, plain.read_tables)
+
+    def test_write_target_accepts_per_segment_backticks(self):
+        evidence = extract_task_table_evidence(
+            "INSERT OVERWRITE INTO `dm_wd_efficiency`.`ai_case_repay_call_detail` "
+            "SELECT * FROM raw.orders"
+        )
+        self.assertEqual(evidence.write_tables, ("dm_wd_efficiency.ai_case_repay_call_detail",))
+        self.assertEqual(evidence.read_tables, ("raw.orders",))
+
+    def test_merged_writer_and_reader_reference_same_normalized_table(self):
+        consumers = build_table_consumers([
+            {
+                "workflow_code": "writer", "project_name": "项目A", "workflow_name": "写入流程",
+                "task_name": "写回收明细", "active": False,
+                "sql": "INSERT INTO `dm_wd_efficiency`.`ai_case_repay_call_detail` SELECT * FROM raw.orders",
+            },
+            {
+                "workflow_code": "reader", "project_name": "项目B", "workflow_name": "消费流程",
+                "task_name": "读回收明细", "active": True,
+                "sql": "SELECT * FROM catalog.dm_wd_efficiency.ai_case_repay_call_detail",
+            },
+        ])
+        self.assertIn("dm_wd_efficiency.ai_case_repay_call_detail", consumers)
+        self.assertTrue(consumers["dm_wd_efficiency.ai_case_repay_call_detail"][0]["active"])
 
     def test_dynamic_script_is_incomplete_not_empty(self):
         evidence = extract_task_table_evidence("spark.sql(sql_text)")

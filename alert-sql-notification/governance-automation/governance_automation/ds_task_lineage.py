@@ -8,7 +8,11 @@ from typing import Any, Dict, Iterable, Tuple
 from .sql_fingerprint import strip_sql_comments
 
 
-_NAME = r"(?:`?([a-zA-Z_][\w]*(?:\.[a-zA-Z_][\w]*){0,2})`?)"
+# Each segment may be an unquoted identifier or a backtick-quoted identifier
+# (which allows chars like `-` or `.` inside backticks).  Supports
+# `db.table`, `` `db`.`table` ``, `catalog.db.table` and `` `db`.`table`.`x` ``.
+_SEGMENT = r"(?:`[^`]+`|[a-zA-Z_][\w]*)"
+_NAME = r"(" + _SEGMENT + r"(?:[.]" + _SEGMENT + r"){0,2})"
 _WRITE_RE = re.compile(
     r"\b(?:insert\s+(?:(?:overwrite|into)\s+)*(?:table\s+)?|merge\s+into\s+|replace\s+into\s+)" + _NAME,
     re.IGNORECASE,
@@ -33,6 +37,15 @@ class TaskTableEvidence:
 
 def _unique(items: Iterable[str]) -> Tuple[str, ...]:
     return tuple(sorted({item.strip().lower() for item in items if item and item.strip()}))
+
+
+def _normalize_table(value: str) -> str:
+    """Canonicalize a matched table reference so spellings like
+    `db.table`, `` `db`.`table` `` and `catalog.db.table` collapse to the same
+    key (``db.table``).  Keeping the last two segments lets catalog-prefixed
+    names match the same physical table written without a catalog."""
+    parts = [part for part in value.replace("`", "").strip().lower().split(".") if part]
+    return ".".join(parts[-2:])
 
 
 def _resource_refs(params: Dict[str, Any]) -> Tuple[str, ...]:
@@ -78,9 +91,9 @@ def extract_task_table_evidence(sql: str, params: Dict[str, Any] = None) -> Task
     if _DYNAMIC_RE.search(text):
         return TaskTableEvidence("incomplete", resource_refs=refs)
     ctes = {match.group(1).lower() for match in _CTE_RE.finditer(text)}
-    writes = [match.group(1) for match in _WRITE_RE.finditer(text)]
-    writes.extend(match.group(1) for match in _CREATE_AS_RE.finditer(text))
-    reads = [match.group(1) for match in _READ_RE.finditer(text)]
+    writes = [_normalize_table(match.group(1)) for match in _WRITE_RE.finditer(text)]
+    writes.extend(_normalize_table(match.group(1)) for match in _CREATE_AS_RE.finditer(text))
+    reads = [_normalize_table(match.group(1)) for match in _READ_RE.finditer(text)]
     write_tables = _unique(writes)
     read_tables = tuple(table for table in _unique(reads) if table.split(".")[-1] not in ctes)
     return TaskTableEvidence("available" if write_tables or read_tables else "none", write_tables, read_tables, refs)

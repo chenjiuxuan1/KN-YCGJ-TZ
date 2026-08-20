@@ -197,10 +197,32 @@ class ZombieClassifierTests(unittest.TestCase):
         self.assertEqual(result.action, "KEEP_ACTIVE")
 
     def test_online_definition_or_running_instance_blocks_decommission(self):
-        online = classify_workflow(self._snapshot(workflow_online=True))
         running = classify_workflow(self._snapshot(active_instance_present=True))
-        self.assertEqual(online.action, "KEEP_ACTIVE")
         self.assertEqual(running.action, "KEEP_ACTIVE")
+
+    def test_online_but_completely_stale_workflow_is_still_a_candidate(self):
+        # release_state=1 (online) alone is not protection: with zero runs and no
+        # schedule the stale definition remains a zombie candidate.
+        online = classify_workflow(self._snapshot(workflow_online=True))
+        self.assertEqual(online.action, "REQUEST_DECOMMISSION_CONFIRMATION")
+
+    def test_dynamic_zero_run_window_label_is_reported(self):
+        result = classify_workflow(
+            self._snapshot(total_runs_window=0, scan_window_label="3个月")
+        )
+        self.assertIn("近3个月零运行", result.reasons)
+
+    def test_recent_activity_within_month_window_keeps_workflow(self):
+        now = datetime.now(timezone.utc)
+        result = classify_workflow(
+            self._snapshot(
+                last_run_time=now - timedelta(days=60),
+                total_runs_30d=0,
+                total_runs_window=4,
+                scan_window_label="3个月",
+            )
+        )
+        self.assertEqual(result.action, "KEEP_ACTIVE")
 
     def test_unknown_access_evidence_does_not_become_absent(self):
         result = classify_workflow(

@@ -237,12 +237,16 @@ LIMIT {limit}
 """.strip()
 
 
-TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
+# Each segment may be unquoted, double-quoted or backtick-quoted so spellings
+# like `db`.`table`, `db`.`table` and catalog.db.table all match.
+_SQL_SEGMENT = r"(?:`[^`]+`|\"[^\"]+\"|[a-zA-Z_][\w]*)"
+_SQL_TABLE_NAME = r"(" + _SQL_SEGMENT + r"(?:[.]" + _SQL_SEGMENT + r"){0,2})"
+TABLE_RE = re.compile(r"\b(?:from|join|into|overwrite|update|table)\s+" + _SQL_TABLE_NAME, re.I)
 ACTION_RE = re.compile(r"\b(create|insert|update|delete|replace|alter|drop|truncate)\b", re.I)
 CTE_RE = re.compile(r"(?:\bwith|,)\s+([a-zA-Z_][\w]*)\s+as\s*\(", re.I)
-INSERT_TARGET_RE = re.compile(r"\binsert\s+(?:overwrite\s+)?(?:into\s+)?(?:table\s+)?([`\"]?[a-zA-Z_][\w.]*)", re.I)
-CREATE_TARGET_RE = re.compile(r"\bcreate\s+(?:table\s+)?(?:if\s+not\s+exists\s+)?([`\"]?[a-zA-Z_][\w.]*)", re.I)
-UPDATE_TARGET_RE = re.compile(r"\bupdate\s+([`\"]?[a-zA-Z_][\w.]*)", re.I)
+INSERT_TARGET_RE = re.compile(r"\binsert\s+(?:overwrite\s+)?(?:into\s+)?(?:table\s+)?" + _SQL_TABLE_NAME, re.I)
+CREATE_TARGET_RE = re.compile(r"\bcreate\s+(?:table\s+)?(?:if\s+not\s+exists\s+)?" + _SQL_TABLE_NAME, re.I)
+UPDATE_TARGET_RE = re.compile(r"\bupdate\s+" + _SQL_TABLE_NAME, re.I)
 NON_TABLE = {"select", "table", "values", "if", "exists", "as", "where"}
 TEMP_TARGET_PREFIXES = ("tmp", "dm_tmp", "test", "temp", "sandbox")
 QUALITY_TASK_KEYWORDS = (
@@ -647,7 +651,7 @@ def extract_sql_tables(sql: str) -> list[str]:
     tables: list[str] = []
     seen: set[str] = set()
     for match in TABLE_RE.finditer(normalized):
-        table = str(match.group(1) or "").strip("`\"").lower()
+        table = str(match.group(1) or "").replace("`", "").replace('"', "").lower()
         if not table or table in NON_TABLE or table in cte_names:
             continue
         if table not in seen:
@@ -673,7 +677,7 @@ def extract_target_tables(sql: str) -> list[str]:
     seen: set[str] = set()
     for pattern in (INSERT_TARGET_RE, CREATE_TARGET_RE, UPDATE_TARGET_RE):
         for match in pattern.finditer(normalized):
-            table = str(match.group(1) or "").strip("`\"").lower()
+            table = str(match.group(1) or "").replace("`", "").replace('"', "").lower()
             if not table or table in NON_TABLE or table in seen:
                 continue
             seen.add(table)

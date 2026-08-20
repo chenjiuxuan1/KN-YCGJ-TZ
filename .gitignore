@@ -1,3 +1,6 @@
 .worktrees/
 .env.country-secrets
 *.env
+
+# macOS
+.DS_Store
