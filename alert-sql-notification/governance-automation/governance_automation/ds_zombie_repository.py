@@ -83,9 +83,9 @@ LEFT JOIN (
   FROM {n['schedules']}
   GROUP BY {n['workflow_definition_code']}
 ) ss ON ss.workflow_code = wd.code
-WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or None)})
-  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name = {quote_sql_literal(workflow_name or None)})
-  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name = {quote_sql_literal(task_name or None)}){release_filter}
+WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name LIKE CONCAT('%', {quote_sql_literal(project_name or '')}, '%'))
+  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_sql_literal(workflow_name or '')}, '%'))
+  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_sql_literal(task_name or '')}, '%')){release_filter}
 ORDER BY wd.code, td.code
 """.strip()
 
