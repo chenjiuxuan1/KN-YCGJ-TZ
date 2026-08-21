@@ -111,8 +111,8 @@ class RepositoryTests(unittest.TestCase):
 
     def test_workflow_and_task_use_fuzzy_like_with_escape(self):
         sql = build_scan_sql(country="mx", lookback_days=30, workflow_name="运营监控", task_name="推送")
-        self.assertIn("wd.name LIKE CONCAT('%', '运营监控', '%') ESCAPE '\\'", sql)
-        self.assertIn("td.name LIKE CONCAT('%', '推送', '%') ESCAPE '\\'", sql)
+        self.assertIn("wd.name LIKE CONCAT('%', '运营监控', '%') ESCAPE '\\\\'", sql)
+        self.assertIn("td.name LIKE CONCAT('%', '推送', '%') ESCAPE '\\\\'", sql)
 
     def test_like_literal_escapes_wildcards_and_backslash(self):
         from governance_automation.ds_zombie_repository import quote_like_literal

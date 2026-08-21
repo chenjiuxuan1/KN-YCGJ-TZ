@@ -107,8 +107,8 @@ LEFT JOIN (
   GROUP BY {n['workflow_definition_code']}
 ) ss ON ss.workflow_code = wd.code
 WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or '')})
-  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_like_literal(workflow_name or '')}, '%') ESCAPE '\\')
-  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_like_literal(task_name or '')}, '%') ESCAPE '\\'){release_filter}
+  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_like_literal(workflow_name or '')}, '%') ESCAPE '\\\\')
+  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_like_literal(task_name or '')}, '%') ESCAPE '\\\\'){release_filter}
 ORDER BY wd.code, td.code
 """.strip()
 
