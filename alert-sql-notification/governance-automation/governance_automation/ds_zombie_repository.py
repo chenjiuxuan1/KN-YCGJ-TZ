@@ -6,6 +6,29 @@ from .ds_metadata_exporter import query_mysql_records, quote_sql_literal
 from .ds_schema import ds_schema_names
 
 
+def quote_like_literal(value: Optional[str]) -> str:
+    """Quote a value for MySQL LIKE CONCAT('%', ... , '%') with ESCAPE '\\'.
+
+    Escapes backslash, single quote, '%' and '_' so the caller's text is
+    matched literally instead of acting as a wildcard.
+    """
+    if value is None:
+        return "NULL"
+    text = []
+    for ch in str(value):
+        if ch == "\\":
+            text.append("\\\\\\\\")
+        elif ch == "%":
+            text.append("\\\\%")
+        elif ch == "_":
+            text.append("\\\\_")
+        elif ch == "'":
+            text.append("''")
+        else:
+            text.append(ch)
+    return '\'' + "".join(text) + '\''
+
+
 def build_scan_sql(
     *, country: str, lookback_days: int = 30, project_name: str = "",
     workflow_name: str = "", task_name: str = "", release_state: str = "online",
@@ -83,9 +106,9 @@ LEFT JOIN (
   FROM {n['schedules']}
   GROUP BY {n['workflow_definition_code']}
 ) ss ON ss.workflow_code = wd.code
-WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name LIKE CONCAT('%', {quote_sql_literal(project_name or '')}, '%'))
-  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_sql_literal(workflow_name or '')}, '%'))
-  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_sql_literal(task_name or '')}, '%')){release_filter}
+WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or '')})
+  AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_like_literal(workflow_name or '')}, '%') ESCAPE '\\')
+  AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_like_literal(task_name or '')}, '%') ESCAPE '\\'){release_filter}
 ORDER BY wd.code, td.code
 """.strip()
 

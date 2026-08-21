@@ -103,6 +103,25 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("DROP ", sql.upper())
 
 
+    def test_project_name_filters_by_exact_match(self):
+        sql = build_scan_sql(country="mx", lookback_days=30, project_name="巴基斯坦-智能贷后")
+        self.assertIn("p.name = '巴基斯坦-智能贷后'", sql)
+        self.assertNotIn("p.name LIKE", sql)
+        self.assertIn("NULL IS NULL OR p.name = ''", build_scan_sql(country="mx", lookback_days=30))
+
+    def test_workflow_and_task_use_fuzzy_like_with_escape(self):
+        sql = build_scan_sql(country="mx", lookback_days=30, workflow_name="运营监控", task_name="推送")
+        self.assertIn("wd.name LIKE CONCAT('%', '运营监控', '%') ESCAPE '\\'", sql)
+        self.assertIn("td.name LIKE CONCAT('%', '推送', '%') ESCAPE '\\'", sql)
+
+    def test_like_literal_escapes_wildcards_and_backslash(self):
+        from governance_automation.ds_zombie_repository import quote_like_literal
+        self.assertEqual(quote_like_literal("100%done"), "'100\\\\%done'")
+        self.assertEqual(quote_like_literal("a_b"), "'a\\\\_b'")
+        self.assertEqual(quote_like_literal("a\\b"), "'a\\\\\\\\b'")
+        self.assertEqual(quote_like_literal("a'b"), "'a''b'")
+
+
 class StoreTests(unittest.TestCase):
     def test_candidate_upsert_has_idempotent_key(self):
         sql = candidate_upsert_sql("governance.ds_zombie_workflow")
