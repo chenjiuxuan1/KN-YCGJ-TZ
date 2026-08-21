@@ -41,7 +41,28 @@ class GovernanceAutomationTests(unittest.TestCase):
         )
         self.assertIn("dwd.dwd_fox_call_history", targets)
 
-    def test_ds_country_config_uses_password_environment_variable(self):
+    def test_match_module_schema_names_and_template_legacy(self):
+        module = self._load_match_module()
+        self.assertEqual(module.resolve_schema_names("new")["workflow_definition"], "t_ds_workflow_definition")
+        self.assertEqual(module.resolve_schema_names("legacy")["workflow_definition"], "t_ds_process_definition")
+        legacy = module.resolve_schema_names("legacy")
+        sql = module.DS_TASK_CANDIDATE_SQL_TEMPLATE.format(
+            limit=5, script_content_expr="1=1", script_filter_sql="",
+            table_workflow_definition=legacy["workflow_definition"],
+            table_workflow_task_relation=legacy["workflow_task_relation"],
+            table_workflow_instance=legacy["workflow_instance"],
+            col_workflow_definition_code=legacy["workflow_definition_code"],
+            col_workflow_definition_version=legacy["workflow_definition_version"],
+        )
+        self.assertIn("JOIN t_ds_process_definition wd", sql)
+        self.assertIn("rel.process_definition_code = wd.code", sql)
+        self.assertNotIn("t_ds_workflow_definition", sql)
+        probe = module.build_schema_probe_sql()
+        self.assertIn("information_schema.tables", probe)
+        self.assertEqual(module.probe_schema.__doc__ or "", "")
+        self.assertEqual(module.DS_SCHEMA_LEGACY["workflow_instance"], "t_ds_process_instance")
+
+
         script_path = Path(__file__).resolve().parents[1] / "remote_scripts" / "ds_match_candidate_query.py"
         spec = importlib.util.spec_from_file_location("ds_match_candidate_query", script_path)
         self.assertIsNotNone(spec)

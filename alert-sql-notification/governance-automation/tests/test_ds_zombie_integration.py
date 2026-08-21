@@ -54,6 +54,54 @@ class RepositoryTests(unittest.TestCase):
         self.assertIn("total_runs_window", sql)
         self.assertIn("'day'", sql)
 
+    def test_legacy_schema_uses_process_tables(self):
+        sql = build_scan_sql(country="pk", lookback_days=30, schema="legacy")
+        for table in (
+            "t_ds_process_definition",
+            "t_ds_process_task_relation",
+            "t_ds_process_instance",
+        ):
+            self.assertIn(table, sql)
+        self.assertIn("process_definition_code AS workflow_code", sql)
+        self.assertIn("rel.process_definition_version = wd.version", sql)
+        self.assertNotIn("t_ds_workflow_definition", sql)
+        self.assertNotIn("t_ds_workflow_instance", sql)
+        self.assertNotIn("workflow_definition_code", sql)
+
+    def test_legacy_schema_metadata_exporter(self):
+        from governance_automation.ds_metadata_exporter import build_ds_task_metadata_sql
+        sql = build_ds_task_metadata_sql(country="pk", schema="legacy")
+        self.assertIn("JOIN t_ds_process_definition pd", sql)
+        self.assertIn("JOIN t_ds_process_task_relation rel", sql)
+        self.assertIn("rel.process_definition_code = pd.code", sql)
+        self.assertNotIn("t_ds_workflow_definition", sql)
+        self.assertNotIn("t_ds_workflow_task_relation", sql)
+
+    def test_schema_resolver_and_detection(self):
+        from governance_automation.ds_schema import (
+            build_schema_probe_sql, detect_ds_schema, ds_schema_names, resolve_ds_schema,
+        )
+        self.assertEqual(resolve_ds_schema("new"), "new")
+        self.assertEqual(resolve_ds_schema("legacy"), "legacy")
+        self.assertEqual(resolve_ds_schema("v2"), "legacy")
+        self.assertEqual(resolve_ds_schema(None, "ph"), "new")
+        self.assertEqual(ds_schema_names("legacy")["workflow_definition"], "t_ds_process_definition")
+        self.assertEqual(detect_ds_schema([{"table_name": "t_ds_process_definition"}]), "legacy")
+        self.assertEqual(detect_ds_schema([{"table_name": "t_ds_workflow_definition"}]), "new")
+        self.assertIsNone(detect_ds_schema([]))
+        probe = build_schema_probe_sql()
+        self.assertIn("information_schema.tables", probe)
+        self.assertIn("t_ds_workflow_definition", probe)
+        self.assertIn("t_ds_process_definition", probe)
+        self.assertNotIn("DELETE ", probe.upper())
+
+    def test_scan_sql_readonly_with_schema(self):
+        for schema in (None, "new", "legacy"):
+            sql = build_scan_sql(country="pk", lookback_days=30, schema=schema)
+            self.assertNotIn("DELETE ", sql.upper())
+            self.assertNotIn("UPDATE ", sql.upper())
+            self.assertNotIn("DROP ", sql.upper())
+
 
 class StoreTests(unittest.TestCase):
     def test_candidate_upsert_has_idempotent_key(self):

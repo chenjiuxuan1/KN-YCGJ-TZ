@@ -19,9 +19,25 @@
 - `t_ds_workflow_task_relation`：当前工作流版本内的前置任务和后置任务。
 - `t_ds_task_definition`：任务编码、任务类型和 `task_params`。
 - `t_ds_schedules`：周期调度与上线状态。
-- `t_ds_process_instance`：最近运行、最近成功、最近失败和近 30 天运行次数。
+- `t_ds_workflow_instance`（旧版为 `t_ds_process_instance`）：最近运行、最近成功、最近失败和近 30 天运行次数。
 
 所有查询均为只读。数据库密码通过远端环境变量 `DS_DB_*` 和 `GOVERNANCE_DB_*` 注入，不写入代码或 n8n JSON。
+
+## 二·一、DS 版本 schema 兼容（new / legacy）
+
+不同国家运行的 DolphinScheduler 版本不同，3.x 把核心表和列改名（`t_ds_process_definition` →
+`t_ds_workflow_definition`、`t_ds_process_instance` → `t_ds_workflow_instance`、列
+`process_definition_code` → `workflow_definition_code`）。扫描 SQL 必须按实际存在的 schema 生成。
+
+- `governance_automation/ds_schema.py` 集中管理两套表/列名与只读探测。
+- `ds_zombie_scan.py` 默认 `--schema auto`：连接 DS 库后先查
+  `information_schema.tables`，存在 `t_ds_workflow_definition` 用 new，存在
+  `t_ds_process_definition` 用 legacy，两者都不存在则报错并提示先运行诊断。
+- 可用 `--schema new|legacy` 覆盖自动探测。
+- 只读诊断命令：`python3 remote_scripts/ds_zombie_scan.py --country pk --batch-id 202608 --schema-check`
+  ，输出实际存在的表、探测 SQL 和建议值，不执行扫描。
+- `ds_metadata_exporter.build_ds_task_metadata_sql` 与
+  `remote_scripts/ds_match_candidate_query.py`（`--schema` 参数）同样兼容两套 schema。
 
 ## 三、任务级 DAG
 

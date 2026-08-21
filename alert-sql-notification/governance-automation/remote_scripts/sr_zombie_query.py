@@ -25,7 +25,7 @@ sys.path.insert(0, str(ROOT))
 VALID_COUNTRIES = ("cn", "ph", "ine", "mx", "th", "pk")
 VALID_OPERATIONS = ("query_candidates", "query_detail_all", "query_whitelist", "validate")
 BATCH_RE = re.compile(r"^\d{6}$")
-SYSTEM_SCHEMAS = ("information_schema", "mysql", "sys", "_statistics_", "starrocks_audit_db__", "governance")
+SYSTEM_SCHEMAS = ("information_schema", "mysql", "sys", "_statistics_", "starrocks_audit_db__", "_starrocks_audit_db_", "governance")
 DEFAULT_BASE_URL = "http://172.20.0.234:4888"
 COUNTRY_GATEWAY_MAP = {"cn": "cn", "ine": "id", "mx": "mx", "ph": "ph", "pk": "pk", "th": "th"}
 

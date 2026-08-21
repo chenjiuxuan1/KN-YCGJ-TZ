@@ -3,14 +3,16 @@
 from typing import Any, Dict, List, Optional
 
 from .ds_metadata_exporter import query_mysql_records, quote_sql_literal
+from .ds_schema import ds_schema_names
 
 
 def build_scan_sql(
     *, country: str, lookback_days: int = 30, project_name: str = "",
     workflow_name: str = "", task_name: str = "", release_state: str = "online",
-    inactive_months: int = 0,
+    inactive_months: int = 0, schema: Optional[str] = None,
 ) -> str:
     """Return one read-only query whose rows contain workflow, task and run evidence."""
+    n = ds_schema_names(schema, country)
     days = max(1, min(int(lookback_days), 365))
     months = max(1, min(int(inactive_months or 0), 120)) if int(inactive_months or 0) > 0 else 0
     if months:
@@ -49,18 +51,18 @@ SELECT {quote_sql_literal(country)} AS country,
        {window_value} AS scan_window_value,
        COALESCE(ist.active_instance_present, 0) AS active_instance_present
 FROM t_ds_project p
-JOIN t_ds_workflow_definition wd ON wd.project_code = p.code
+JOIN {n['workflow_definition']} wd ON wd.project_code = p.code
 LEFT JOIN t_ds_user u ON u.id = wd.user_id
-LEFT JOIN t_ds_workflow_task_relation rel
+LEFT JOIN {n['workflow_task_relation']} rel
   ON rel.project_code = wd.project_code
- AND rel.workflow_definition_code = wd.code
- AND rel.workflow_definition_version = wd.version
+ AND rel.{n['workflow_definition_code']} = wd.code
+ AND rel.{n['workflow_definition_version']} = wd.version
 LEFT JOIN t_ds_task_definition td
   ON td.project_code = rel.project_code
  AND td.code = rel.post_task_code
  AND td.version = rel.post_task_version
 LEFT JOIN (
-  SELECT workflow_definition_code AS workflow_code,
+  SELECT {n['workflow_definition_code']} AS workflow_code,
          MAX(start_time) AS last_run_time,
          MAX(CASE WHEN state = 7 THEN end_time END) AS last_success_time,
          MAX(CASE WHEN state IN (6,9) THEN end_time END) AS last_failure_time,
@@ -69,17 +71,17 @@ LEFT JOIN (
          {window_expr} AS total_runs_window,
          {failed_expr} AS failed_runs_window,
          MAX(CASE WHEN state IN (0,1,2,4,8,10,11) THEN 1 ELSE 0 END) AS active_instance_present
-  FROM t_ds_workflow_instance
-  GROUP BY workflow_definition_code
+  FROM {n['workflow_instance']}
+  GROUP BY {n['workflow_definition_code']}
 ) ist ON ist.workflow_code = wd.code
 LEFT JOIN (
-  SELECT workflow_definition_code AS workflow_code,
+  SELECT {n['workflow_definition_code']} AS workflow_code,
          MAX(CASE WHEN release_state = 1 THEN 1 ELSE 0 END) AS schedule_online,
          MAX(CASE WHEN release_state = 1
                        AND start_time <= NOW()
                        AND end_time >= NOW() THEN 1 ELSE 0 END) AS schedule_active
-  FROM t_ds_schedules
-  GROUP BY workflow_definition_code
+  FROM {n['schedules']}
+  GROUP BY {n['workflow_definition_code']}
 ) ss ON ss.workflow_code = wd.code
 WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or None)})
   AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name = {quote_sql_literal(workflow_name or None)})

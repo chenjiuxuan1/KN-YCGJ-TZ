@@ -126,6 +126,58 @@ DS_COUNTRY_CONFIG = {
 }
 
 
+# DS 3.x renamed core tables/columns; different countries run different DS
+# versions, so candidate SQL must be built against the schema that exists.
+DS_SCHEMA_NEW = {
+    "workflow_definition": "t_ds_workflow_definition",
+    "workflow_task_relation": "t_ds_workflow_task_relation",
+    "workflow_instance": "t_ds_workflow_instance",
+    "schedules": "t_ds_schedules",
+    "workflow_definition_code": "workflow_definition_code",
+    "workflow_definition_version": "workflow_definition_version",
+}
+DS_SCHEMA_LEGACY = {
+    "workflow_definition": "t_ds_process_definition",
+    "workflow_task_relation": "t_ds_process_task_relation",
+    "workflow_instance": "t_ds_process_instance",
+    "schedules": "t_ds_schedules",
+    "workflow_definition_code": "process_definition_code",
+    "workflow_definition_version": "process_definition_version",
+}
+DS_SCHEMA_ALIASES = {
+    "new": "new", "v3": "new", "3": "new", "workflow": "new",
+    "legacy": "legacy", "old": "legacy", "v2": "legacy", "2": "legacy", "process": "legacy",
+}
+
+
+def resolve_schema_names(schema: str, country: str = "") -> dict[str, str]:
+    key = str(schema or "").strip().lower()
+    if key in DS_SCHEMA_ALIASES:
+        resolved = DS_SCHEMA_ALIASES[key]
+    else:
+        resolved = "new"
+    return DS_SCHEMA_LEGACY if resolved == "legacy" else DS_SCHEMA_NEW
+
+
+def probe_schema(connection, probe_sql: str) -> str:
+    rows = query_mysql_rows(connection, probe_sql, timeout=15)
+    found = {str(row.get("table_name") or "") for row in rows}
+    if DS_SCHEMA_NEW["workflow_definition"] in found:
+        return "new"
+    if DS_SCHEMA_LEGACY["workflow_definition"] in found:
+        return "legacy"
+    return ""
+
+
+def build_schema_probe_sql() -> str:
+    tables = sorted({DS_SCHEMA_NEW["workflow_definition"], DS_SCHEMA_LEGACY["workflow_definition"]})
+    in_list = ", ".join("'%s'" % t for t in tables)
+    return (
+        "SELECT table_name FROM information_schema.tables "
+        "WHERE table_schema = DATABASE() AND table_name IN (%s)" % in_list
+    )
+
+
 SCRIPT_CONTENT_EXPR = r"""CONCAT_WS(
     '\n',
     NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
@@ -154,12 +206,12 @@ SELECT
   {script_content_expr} AS script_content,
   {script_content_expr} AS sql_content
 FROM t_ds_project p
-JOIN t_ds_workflow_definition wd
+JOIN {table_workflow_definition} wd
   ON wd.project_code = p.code
-JOIN t_ds_workflow_task_relation rel
+JOIN {table_workflow_task_relation} rel
   ON rel.project_code = wd.project_code
- AND rel.workflow_definition_code = wd.code
- AND rel.workflow_definition_version = wd.version
+ AND rel.{col_workflow_definition_code} = wd.code
+ AND rel.{col_workflow_definition_version} = wd.version
 JOIN t_ds_task_definition td
   ON td.project_code = rel.project_code
  AND td.code = rel.post_task_code
@@ -182,8 +234,8 @@ SELECT
   ti.id AS task_instance_id,
   p.name AS project_name,
   COALESCE(project_owner.user_name, '') AS project_owner,
-  wi.workflow_definition_code AS workflow_code,
-  wi.workflow_definition_version AS workflow_version,
+  wi.{col_workflow_definition_code} AS workflow_code,
+  wi.{col_workflow_definition_version} AS workflow_version,
   wi.name AS workflow_name,
   '' AS workflow_release_state,
   COALESCE(workflow_owner.user_name, '') AS workflow_owner,
@@ -202,14 +254,14 @@ SELECT
   ti.host AS instance_host,
   ti.log_path AS instance_log_path
 FROM t_ds_task_instance ti
-LEFT JOIN t_ds_workflow_instance wi
+LEFT JOIN {table_workflow_instance} wi
   ON ti.workflow_instance_id = wi.id
 LEFT JOIN t_ds_project p
   ON wi.project_code = p.code
-LEFT JOIN t_ds_workflow_definition wd
+LEFT JOIN {table_workflow_definition} wd
   ON wd.project_code = wi.project_code
- AND wd.code = wi.workflow_definition_code
- AND wd.version = wi.workflow_definition_version
+ AND wd.code = wi.{col_workflow_definition_code}
+ AND wd.version = wi.{col_workflow_definition_version}
 LEFT JOIN t_ds_task_definition td
   ON td.project_code = wi.project_code
  AND td.code = ti.task_code
@@ -1320,6 +1372,7 @@ def query_recent_instances(
     account_hints: list[str] | None = None,
     precise_window_minutes: int = 0,
     fallback_window_minutes: int = 0,
+    schema_names: dict[str, str] | None = None,
 ) -> tuple[list[dict[str, str]], dict[str, Any]]:
     center = parse_datetime(alert_time)
     if not center:
@@ -1350,6 +1403,7 @@ def query_recent_instances(
     def build_time_window_query(window_before: int, window_after: int, extra_filter_sql: str = "") -> tuple[str, str, str]:
         start_time = center - timedelta(minutes=max(1, window_before))
         end_time = center + timedelta(minutes=max(1, window_after))
+        names = schema_names or DS_SCHEMA_NEW
         sql = DS_TASK_INSTANCE_SQL_TEMPLATE.format(
             script_content_expr=SCRIPT_CONTENT_EXPR,
             center_time=quote_sql_literal(center.strftime("%Y-%m-%d %H:%M:%S")),
@@ -1357,6 +1411,11 @@ def query_recent_instances(
             end_time=quote_sql_literal(end_time.strftime("%Y-%m-%d %H:%M:%S")),
             instance_filter_sql=extra_filter_sql,
             limit=max(1, int(limit)),
+            table_workflow_definition=names["workflow_definition"],
+            table_workflow_task_relation=names["workflow_task_relation"],
+            table_workflow_instance=names["workflow_instance"],
+            col_workflow_definition_code=names["workflow_definition_code"],
+            col_workflow_definition_version=names["workflow_definition_version"],
         )
         return sql, start_time.strftime("%Y-%m-%d %H:%M:%S"), end_time.strftime("%Y-%m-%d %H:%M:%S")
 
@@ -1435,6 +1494,8 @@ def parse_args() -> argparse.Namespace:
     parser.add_argument("--country", default="", help="Country code: cn, ine, mx, ph, pk, th.")
     parser.add_argument("--cluster", default="", help="StarRocks cluster, used to infer country when country is empty.")
     parser.add_argument("--limit", type=int, default=3000, help="Max DS task candidates to return.")
+    parser.add_argument("--schema", choices=("auto", "new", "legacy"), default="auto",
+                        help="DS 元数据表结构：auto=自动探测(默认)、new=t_ds_workflow_definition、legacy=t_ds_process_definition")
     parser.add_argument("--alert-time", default="", help="Abnormal SQL start/alert time used for instance fallback.")
     parser.add_argument("--query-id", default="", help="StarRocks query id, used as a high-quality DS log evidence term.")
     parser.add_argument("--primary-account", default="", help="Primary abnormal SQL account, used for DS account-aware scoring.")
@@ -1512,10 +1573,24 @@ def main() -> None:
         source_sql = decode_base64_text(source_sql_b64)
         account_hints = parse_account_hints_json(args.account_hints_json)
         script_filter_sql, filter_tables = build_script_filter_sql(source_sql)
+        schema_names = resolve_schema_names(args.schema, country)
+        if args.schema == "auto":
+            try:
+                probe_sql = build_schema_probe_sql()
+                probed = probe_schema(connection, probe_sql)
+                if probed:
+                    schema_names = resolve_schema_names(probed, country)
+            except Exception:
+                schema_names = schema_names
         sql = DS_TASK_CANDIDATE_SQL_TEMPLATE.format(
             limit=max(1, int(args.limit)),
             script_content_expr=SCRIPT_CONTENT_EXPR,
             script_filter_sql=script_filter_sql,
+            table_workflow_definition=schema_names["workflow_definition"],
+            table_workflow_task_relation=schema_names["workflow_task_relation"],
+            table_workflow_instance=schema_names["workflow_instance"],
+            col_workflow_definition_code=schema_names["workflow_definition_code"],
+            col_workflow_definition_version=schema_names["workflow_definition_version"],
         )
         rows = query_mysql_rows(connection, sql)
         rows, match_meta = (
@@ -1541,6 +1616,7 @@ def main() -> None:
                     account_hints=account_hints,
                     precise_window_minutes=args.precise_window_minutes,
                     fallback_window_minutes=args.fallback_window_minutes,
+                    schema_names=schema_names,
                 )
                 instance_matches, instance_match_meta = score_instance_matches(
                     source_sql,

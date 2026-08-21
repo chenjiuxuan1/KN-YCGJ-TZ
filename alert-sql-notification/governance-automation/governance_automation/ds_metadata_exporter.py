@@ -5,6 +5,8 @@ from __future__ import annotations
 import os
 from typing import Any
 
+from .ds_schema import build_schema_probe_sql, detect_ds_schema, ds_schema_names
+
 
 DS_TASK_METADATA_SQL = """
 SELECT
@@ -34,16 +36,16 @@ SELECT
   NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.datasourceName')), 'null') AS `数据源名称`,
   NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.resourceList')), 'null') AS `资源列表`
 FROM t_ds_project p
-JOIN t_ds_workflow_definition pd
+JOIN %(workflow_definition)s pd
   ON pd.project_code = p.code
 LEFT JOIN t_ds_user project_owner
   ON project_owner.id = p.user_id
 LEFT JOIN t_ds_user workflow_owner
   ON workflow_owner.id = pd.user_id
-JOIN t_ds_workflow_task_relation rel
+JOIN %(workflow_task_relation)s rel
   ON rel.project_code = pd.project_code
- AND rel.workflow_definition_code = pd.code
- AND rel.workflow_definition_version = pd.version
+ AND rel.%(workflow_definition_code)s = pd.code
+ AND rel.%(workflow_definition_version)s = pd.version
 JOIN t_ds_task_definition td
   ON td.project_code = rel.project_code
  AND td.code = rel.post_task_code
@@ -68,12 +70,18 @@ def build_ds_task_metadata_sql(
     project_name: str | None = None,
     workflow_name: str | None = None,
     task_name: str | None = None,
+    schema: str | None = None,
 ) -> str:
+    n = ds_schema_names(schema, country)
     return DS_TASK_METADATA_SQL % {
         "country_literal": quote_sql_literal(country),
         "project_name_filter": quote_sql_literal(project_name),
         "workflow_name_filter": quote_sql_literal(workflow_name),
         "task_name_filter": quote_sql_literal(task_name),
+        "workflow_definition": n["workflow_definition"],
+        "workflow_task_relation": n["workflow_task_relation"],
+        "workflow_definition_code": n["workflow_definition_code"],
+        "workflow_definition_version": n["workflow_definition_version"],
     }
 
 
@@ -118,3 +126,9 @@ def query_mysql_records(
             return [dict(row) for row in cursor.fetchall()]
     finally:
         connection.close()
+
+
+def detect_connected_ds_schema(*, config: dict[str, Any]) -> str | None:
+    """Probe the live DS database and return "new"/"legacy", or None."""
+    rows = query_mysql_records(sql=build_schema_probe_sql(), **config)
+    return detect_ds_schema(rows)

@@ -14,7 +14,12 @@ ROOT = Path(__file__).resolve().parents[1]
 sys.path.insert(0, str(ROOT))
 
 from governance_automation.ds_dependency_graph import build_dependency_graph
-from governance_automation.ds_metadata_exporter import read_mysql_config_from_env
+from governance_automation.ds_metadata_exporter import (
+    detect_connected_ds_schema, read_mysql_config_from_env,
+)
+from governance_automation.ds_schema import (
+    build_schema_probe_sql, resolve_ds_schema, SCHEMA_PROBE_TABLES,
+)
 from governance_automation.ds_zombie_classifier import classify_workflow
 from governance_automation.ds_zombie_dependency_policy import assess_downstream_activity
 from governance_automation.ds_zombie_models import ScoreResult
@@ -206,6 +211,46 @@ def build_task_rows(workflow_row, tasks, table_consumers=None):
     return [fallback]
 
 
+def run_schema_check(args, config):
+    probe_sql = build_schema_probe_sql()
+    try:
+        from governance_automation.ds_metadata_exporter import query_mysql_records
+        rows = query_mysql_records(sql=probe_sql, **config)
+    except Exception as exc:
+        return {"success": False, "country": args.country,
+                "probe_sql": probe_sql, "error": str(exc)[:500]}
+    found = sorted({str(row.get("table_name") or "") for row in rows})
+    from governance_automation.ds_schema import detect_ds_schema
+    detected = detect_ds_schema(rows)
+    tables = {
+        "new": SCHEMA_PROBE_TABLES["new"],
+        "legacy": SCHEMA_PROBE_TABLES["legacy"],
+    }
+    recommendation = {
+        "new": tables["new"],
+        "legacy": tables["legacy"],
+        None: "无法识别（两套表都不存在，请确认 database 是否正确或联系平台）",
+    }[detected]
+    return {
+        "success": True, "country": args.country, "detected_schema": detected,
+        "found_tables": found, "probe_sql": probe_sql,
+        "recommended_scan_table": recommendation,
+        "hint": "使用 --schema new|legacy 可覆盖自动探测",
+    }
+
+
+def resolve_scan_schema(args, config):
+    if args.schema != "auto":
+        return resolve_ds_schema(args.schema)
+    detected = detect_connected_ds_schema(config=config)
+    if detected is None:
+        raise RuntimeError(
+            "无法自动识别 DS schema：数据库中不存在 %s 也 %s，请先运行 --schema-check 诊断。"
+            % (SCHEMA_PROBE_TABLES["new"], SCHEMA_PROBE_TABLES["legacy"])
+        )
+    return detected
+
+
 def scan(args):
     config = read_mysql_config_from_env()
     missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
@@ -214,11 +259,12 @@ def scan(args):
         missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
     if missing:
         raise RuntimeError("missing DS environment: " + ",".join(missing))
+    schema_name = resolve_scan_schema(args, config)
     rows = DsZombieRepository(config).fetch_scan_rows(
         country=args.country, lookback_days=args.lookback_days,
         inactive_months=args.min_stale_months,
         project_name=args.project_name, workflow_name=args.workflow_name, task_name=args.task_name,
-        release_state=args.release_state,
+        release_state=args.release_state, schema=schema_name,
     )
     workflows, relations, tasks, tasks_by_workflow, task_names = OrderedDict(), [], [], OrderedDict(), {}
     for row in rows:
@@ -394,9 +440,20 @@ def main():
                         help="Also export D-level workflows retained by active-use protection.")
     parser.add_argument("--write-to-db", action="store_true")
     parser.add_argument("--dry-run", action="store_true")
+    parser.add_argument("--schema", choices=("auto", "new", "legacy"), default="auto",
+                        help="DS 元数据表结构：auto=自动探测(默认)、new=t_ds_workflow_definition、legacy=t_ds_process_definition")
+    parser.add_argument("--schema-check", action="store_true",
+                        help="只读诊断：探测 DS 数据库实际使用哪套元数据表并退出，不做扫描")
     args = parser.parse_args()
     try:
-        payload = scan(args)
+        config = read_mysql_config_from_env()
+        missing = [key for key in ("host", "user", "password", "database") if not config.get(key)]
+        if missing:
+            config = builtin_ds_config(args.country)
+        if args.schema_check:
+            payload = run_schema_check(args, config)
+        else:
+            payload = scan(args)
     except Exception as exc:
         payload = {"success": False, "country": args.country, "batch_id": args.batch_id,
                    "error": {"code": "DS_ZOMBIE_SCAN_FAILED", "message": str(exc)[:500]}}
