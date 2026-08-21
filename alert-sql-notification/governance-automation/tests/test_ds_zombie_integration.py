@@ -103,11 +103,19 @@ class RepositoryTests(unittest.TestCase):
             self.assertNotIn("DROP ", sql.upper())
 
 
-    def test_project_name_filters_by_exact_match(self):
+    def test_project_name_matches_exact_prefix_and_code(self):
         sql = build_scan_sql(country="mx", lookback_days=30, project_name="巴基斯坦-智能贷后")
         self.assertIn("p.name = '巴基斯坦-智能贷后'", sql)
-        self.assertNotIn("p.name LIKE", sql)
-        self.assertIn("NULL IS NULL OR p.name = ''", build_scan_sql(country="mx", lookback_days=30))
+        self.assertIn("p.name LIKE CONCAT('巴基斯坦-智能贷后', '%') ESCAPE '\\\\'", sql)
+        self.assertIn("WHERE 1 = 1", build_scan_sql(country="mx", lookback_days=30))
+
+    def test_project_name_numeric_also_matches_project_code(self):
+        sql = build_scan_sql(country="pk", lookback_days=30, project_name="169585666733760")
+        self.assertIn("p.code = '169585666733760'", sql)
+
+    def test_project_name_underscore_is_escaped_literal(self):
+        sql = build_scan_sql(country="pk", lookback_days=30, project_name="haoy_new")
+        self.assertIn("p.name LIKE CONCAT('haoy\\\\_new', '%') ESCAPE '\\\\'", sql)
 
     def test_workflow_and_task_use_fuzzy_like_with_escape(self):
         sql = build_scan_sql(country="mx", lookback_days=30, workflow_name="运营监控", task_name="推送")

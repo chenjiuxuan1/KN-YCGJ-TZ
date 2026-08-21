@@ -29,6 +29,24 @@ def quote_like_literal(value: Optional[str]) -> str:
     return '\'' + "".join(text) + '\''
 
 
+def build_project_name_filter(project_name: str) -> str:
+    """Project filter: exact name, name prefix, or numeric project code.
+
+    Returns an empty string when no filter is given so the whole scan is not
+    restricted to one project.
+    """
+    value = str(project_name or "")
+    if not value:
+        return ""
+    parts = [
+        f"p.name = {quote_sql_literal(value)}",
+        f"p.name LIKE CONCAT({quote_like_literal(value)}, '%') ESCAPE '\\\\'",
+    ]
+    if value.strip().isdigit():
+        parts.append(f"p.code = {quote_sql_literal(value)}")
+    return "(" + " OR ".join(parts) + ")"
+
+
 def build_scan_sql(
     *, country: str, lookback_days: int = 30, project_name: str = "",
     workflow_name: str = "", task_name: str = "", release_state: str = "online",
@@ -106,7 +124,7 @@ LEFT JOIN (
   FROM {n['schedules']}
   GROUP BY {n['workflow_definition_code']}
 ) ss ON ss.workflow_code = wd.code
-WHERE ({quote_sql_literal(project_name or None)} IS NULL OR p.name = {quote_sql_literal(project_name or '')})
+WHERE {build_project_name_filter(project_name) or '1 = 1'}
   AND ({quote_sql_literal(workflow_name or None)} IS NULL OR wd.name LIKE CONCAT('%', {quote_like_literal(workflow_name or '')}, '%') ESCAPE '\\\\')
   AND ({quote_sql_literal(task_name or None)} IS NULL OR td.name LIKE CONCAT('%', {quote_like_literal(task_name or '')}, '%') ESCAPE '\\\\'){release_filter}
 ORDER BY wd.code, td.code
