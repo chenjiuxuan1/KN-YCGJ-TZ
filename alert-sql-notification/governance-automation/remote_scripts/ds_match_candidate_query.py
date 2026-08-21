@@ -178,6 +178,27 @@ def build_schema_probe_sql() -> str:
     )
 
 
+class _SchemaDefaultTemplate(str):
+    """SQL template that tolerates callers who don't know about the new/legacy
+    DS schema placeholders yet (e.g. the separately-deployed n8n postprocessor).
+    Explicit kwargs from the caller always win; missing schema placeholders
+    fall back to the new-schema (DS 3.x) table/column names.
+    """
+
+    _DEFAULTS = {
+        "table_workflow_definition": DS_SCHEMA_NEW["workflow_definition"],
+        "table_workflow_task_relation": DS_SCHEMA_NEW["workflow_task_relation"],
+        "table_workflow_instance": DS_SCHEMA_NEW["workflow_instance"],
+        "col_workflow_definition_code": DS_SCHEMA_NEW["workflow_definition_code"],
+        "col_workflow_definition_version": DS_SCHEMA_NEW["workflow_definition_version"],
+    }
+
+    def format(self, *args, **kwargs):
+        merged = dict(self._DEFAULTS)
+        merged.update(kwargs)
+        return str.format(self, *args, **merged)
+
+
 SCRIPT_CONTENT_EXPR = r"""CONCAT_WS(
     '\n',
     NULLIF(JSON_UNQUOTE(JSON_EXTRACT(td.task_params, '$.rawScript')), 'null'),
@@ -188,7 +209,7 @@ SCRIPT_CONTENT_EXPR = r"""CONCAT_WS(
   )"""
 
 
-DS_TASK_CANDIDATE_SQL_TEMPLATE = r"""
+DS_TASK_CANDIDATE_SQL_TEMPLATE = _SchemaDefaultTemplate(r"""
 SELECT
   p.name AS project_name,
   COALESCE(project_owner.user_name, '') AS project_owner,
@@ -226,10 +247,10 @@ WHERE {script_content_expr} IS NOT NULL
   {script_filter_sql}
 ORDER BY p.name, wd.name, td.name
 LIMIT {limit}
-""".strip()
+""".strip())
 
 
-DS_TASK_INSTANCE_SQL_TEMPLATE = r"""
+DS_TASK_INSTANCE_SQL_TEMPLATE = _SchemaDefaultTemplate(r"""
 SELECT
   ti.id AS task_instance_id,
   p.name AS project_name,
@@ -286,7 +307,7 @@ ORDER BY
   ABS(TIMESTAMPDIFF(SECOND, ti.start_time, {center_time})) ASC,
   ti.start_time DESC
 LIMIT {limit}
-""".strip()
+""".strip())
 
 
 # Each segment may be unquoted, double-quoted or backtick-quoted so spellings
